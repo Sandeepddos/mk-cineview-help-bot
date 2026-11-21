@@ -37,10 +37,20 @@ def extract_14_frames(video_path, duration):
     usable_duration = max(duration - 16, 10)
     fps_rate = 14 / usable_duration
 
+    # 1. crop=iw*0.86:ih*0.86 -> ಸುತ್ತಲಿನ 7% ಅಂಚನ್ನು ಕಟ್ ಮಾಡಿ ಚಾನೆಲ್ ಲೋಗೋ/ವಾಟರ್‌ಮಾರ್ಕ್ ತೆಗೆಯುತ್ತದೆ
+    # 2. scale=1920:-1:flags=lanczos -> Full HD 1080p ಕ್ವಾಲಿಟಿಗೆ ಅಪ್‌ಸ್ಕೇಲ್ ಮಾಡುತ್ತದೆ
+    # 3. unsharp=5:5:0.8:5:5:0.0 -> ಫೋಟೋ ಶಾರ್ಪ್‌ನೆಸ್ ಹೆಚ್ಚಿಸುತ್ತದೆ
+    vf_filter = (
+        f"fps={fps_rate},"
+        "crop=iw*0.86:ih*0.86:(iw-iw*0.86)/2:(ih-ih*0.86)/2,"
+        "scale=1920:-1:flags=lanczos,"
+        "unsharp=5:5:0.8:5:5:0.0"
+    )
+
     cmd = [
         "ffmpeg", "-ss", str(start_sec), "-t", str(usable_duration),
-        "-i", video_path, "-vf", f"fps={fps_rate},scale=1280:-1",
-        "-vframes", "14", "-q:v", "2", "temp_media/frames/frame_%02d.jpg",
+        "-i", video_path, "-vf", vf_filter,
+        "-vframes", "14", "-q:v", "1", "temp_media/frames/frame_%02d.jpg",
         "-hide_banner", "-loglevel", "error"
     ]
     subprocess.run(cmd, check=True)
@@ -96,7 +106,7 @@ def check_uploaded_video_from_telegram(data):
                 if frames:
                     requests.post(
                         f"{base_url}/sendMessage",
-                        data={"chat_id": CHAT_ID, "text": "✂️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
+                        data={"chat_id": CHAT_ID, "text": "✨ ಲೋಗೋ ರಿಮೂವ್ ಮಾಡಿ ಕಟ್ ಮಾಡಿದ 14 HD ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
                     )
                     send_frames_album(frames)
                     processed_any = True
@@ -164,14 +174,11 @@ def generate_script(title, channel, description, url):
 3. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
 4. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
-    # API Key ಗೆ ಲಭ್ಯವಿರುವ ಎಲ್ಲಾ Flash/Pro ಮಾಡೆಲ್‌ಗಳನ್ನು ಆಟೋಮ್ಯಾಟಿಕ್ ಆಗಿ ಹುಡುಕುತ್ತದೆ
     available_models = []
     for m in client.models.list():
         name = m.name.replace("models/", "")
         if "gemini" in name and ("flash" in name or "pro" in name) and "tts" not in name and "image" not in name:
             available_models.append(name)
-
-    print(f"ನಿನ್ನ API Key ಗೆ ಲಭ್ಯವಿರುವ ಮಾಡೆಲ್‌ಗಳು: {available_models}")
 
     for model_name in available_models:
         try:
@@ -184,7 +191,7 @@ def generate_script(title, channel, description, url):
         except Exception as e:
             print(f"{model_name} ಎರರ್: {e}")
             
-    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ. GEMINI_API_KEY ಸರಿಯಾಗಿದೆಯೇ ಎಂದು ಚೆಕ್ ಮಾಡು.")
+    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
 def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
@@ -228,7 +235,7 @@ def main():
     
     if check_uploaded_video_from_telegram(data):
         save_data(data)
-        print("ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ 14 ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸಲಾಗಿದೆ!")
+        print("ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ ಲೋಗೋ ತೆಗೆದು 14 HD ಫೋಟೋಗಳನ್ನು ಕಳುಹಿಸಲಾಗಿದೆ!")
         return
 
     url, vid_id, search_title = search_latest_video(data["videos"])
