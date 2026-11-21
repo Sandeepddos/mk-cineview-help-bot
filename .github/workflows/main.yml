@@ -3,7 +3,6 @@ name: MK Helper Bot (Trailer & Box Office)
 on:
   workflow_dispatch:
   schedule:
-    # ಪ್ರತಿದಿನ ಬೆಳಗ್ಗೆ 7:30 AM IST (02:00 UTC) ಮತ್ತು ಮಧ್ಯಾಹ್ನ 12:30 PM IST (07:00 UTC) ಕ್ಕೆ ರನ್ ಆಗುತ್ತದೆ
     - cron: '0 2 * * *'
     - cron: '0 7 * * *'
 
@@ -31,13 +30,6 @@ jobs:
           echo "$HOME/.deno/bin" >> $GITHUB_PATH
           pip install --upgrade pip
           pip install -r requirements.txt
-
-      - name: Create YouTube Cookies File (Optional)
-        if: env.YT_COOKIES != ''
-        env:
-          YT_COOKIES: ${{ secrets.YT_COOKIES }}
-        run: |
-          echo "$YT_COOKIES" > cookies.txt
 
       - name: Run Helper Bot Script
         env:
