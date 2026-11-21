@@ -23,10 +23,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install FFmpeg and Dependencies
+      - name: Install FFmpeg, Deno and Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg unzip curl
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
           pip install --upgrade pip
           pip install -r requirements.txt
 
