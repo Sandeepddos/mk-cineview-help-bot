@@ -1,6 +1,8 @@
 import os
 import json
 import time
+import urllib.parse
+from datetime import datetime, timedelta
 import requests
 import yt_dlp
 from google import genai
@@ -12,7 +14,8 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 HISTORY_FILE = "helper_history.json"
 SEARCH_QUERIES = [
     "New Kannada Movie Official Trailer 2026",
-    "Kannada Movie Box Office Collection Day 2 2026"
+    "Kannada Movie Official Teaser 2026",
+    "Kannada Movie Box Office Collection 2026"
 ]
 
 def load_history():
@@ -28,21 +31,53 @@ def save_history(videos):
     with open(HISTORY_FILE, "w") as f:
         json.dump(videos[-100:], f, indent=2)
 
+def is_within_24_hours(entry, ydl):
+    # ಮೊದಲು ಫ್ಲಾಟ್ ರಿಸಲ್ಟ್‌ನಲ್ಲೇ upload_date ಇದೆಯಾ ಚೆಕ್ ಮಾಡುತ್ತದೆ
+    up_date = entry.get("upload_date")
+    if not up_date:
+        # ಇಲ್ಲದಿದ್ದರೆ ವಿಡಿಯೋದ ನಿಖರವಾದ ದಿನಾಂಕವನ್ನು ಚೆಕ್ ಮಾಡುತ್ತದೆ
+        try:
+            full_info = ydl.extract_info(f"https://www.youtube.com/watch?v={entry['id']}", download=False)
+            up_date = full_info.get("upload_date")
+        except Exception:
+            return False
+
+    if not up_date:
+        return False
+
+    try:
+        video_dt = datetime.strptime(up_date, "%Y%m%d")
+        # ಕಳೆದ 1 ದಿನ (ಇಂದು ಅಥವಾ ನಿನ್ನೆ) ಅಪ್‌ಲೋಡ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ True ಕೊಡುತ್ತದೆ
+        cutoff_dt = datetime.utcnow() - timedelta(days=1)
+        return video_dt.date() >= cutoff_dt.date()
+    except Exception:
+        return False
+
 def search_latest_video(history_list):
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
-        "playlistend": 5
+        "playlistend": 6
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for query in SEARCH_QUERIES:
-            search_url = f"ytsearch5:{query}"
-            info = ydl.extract_info(search_url, download=False)
+            encoded_q = urllib.parse.quote(query)
+            # sp=EgIIAg%253D%253D -> YouTube ನ 'Last 24 hours (Today)' ಫಿಲ್ಟರ್
+            search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
+            try:
+                info = ydl.extract_info(search_url, download=False)
+            except Exception as e:
+                print(f"ಸರ್ಚ್ ಎರರ್: {e}")
+                continue
+
             for entry in info.get("entries", []):
                 vid_id = entry.get("id")
                 duration = entry.get("duration") or 0
                 if vid_id and vid_id not in history_list and 60 <= duration <= 480:
-                    return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
+                    if is_within_24_hours(entry, ydl):
+                        return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
+                    else:
+                        print(f"ಹಳೆಯ ವಿಡಿಯೋ ಸ್ಕಿಪ್ ಮಾಡಲಾಗಿದೆ: {entry.get('title')}")
     return None, None, None
 
 def generate_script(title, url):
@@ -85,10 +120,10 @@ def main():
     url, vid_id, search_title = search_latest_video(history)
     
     if not url:
-        print("ಯಾವುದೇ ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
+        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
-    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
+    print(f"ಹೊಸ 1 ದಿನದ ಒಳಗಿನ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
@@ -117,7 +152,7 @@ def main():
 
     history.append(vid_id)
     save_history(history)
-    print("ಯಶಸ್ವಿಯಾಗಿ ಹೊಸ ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸಲಾಗಿದೆ!")
+    print("ಯಶಸ್ವಿಯಾಗಿ ಹೊಸ 1 ದಿನದ ವಿಡಿಯೋ ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸಲಾಗಿದೆ!")
 
 if __name__ == "__main__":
     main()
