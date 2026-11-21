@@ -129,7 +129,7 @@ def try_download_video(url):
         "quiet": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["tv_embedded", "ios", "android"],
+                "player_client": ["ios", "android"],
                 "player_skip": ["webpage", "configs"]
             }
         },
@@ -164,13 +164,16 @@ def generate_script(title, channel, description, url):
 3. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
 4. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
-    models_to_try = [
-        "gemini-3-flash-preview",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
-        "gemini-2.0-flash"
-    ]
-    for model_name in models_to_try:
+    # API Key ಗೆ ಲಭ್ಯವಿರುವ ಎಲ್ಲಾ Flash/Pro ಮಾಡೆಲ್‌ಗಳನ್ನು ಆಟೋಮ್ಯಾಟಿಕ್ ಆಗಿ ಹುಡುಕುತ್ತದೆ
+    available_models = []
+    for m in client.models.list():
+        name = m.name.replace("models/", "")
+        if "gemini" in name and ("flash" in name or "pro" in name) and "tts" not in name and "image" not in name:
+            available_models.append(name)
+
+    print(f"ನಿನ್ನ API Key ಗೆ ಲಭ್ಯವಿರುವ ಮಾಡೆಲ್‌ಗಳು: {available_models}")
+
+    for model_name in available_models:
         try:
             response = client.models.generate_content(
                 model=model_name,
@@ -179,8 +182,9 @@ def generate_script(title, channel, description, url):
             print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}")
             return response.text
         except Exception as e:
-            print(f"{model_name} ಕೆಲಸ ಮಾಡಲಿಲ್ಲ, ಮುಂದಿನ ಮಾಡೆಲ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...")
-    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
+            print(f"{model_name} ಎರರ್: {e}")
+            
+    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ. GEMINI_API_KEY ಸರಿಯಾಗಿದೆಯೇ ಎಂದು ಚೆಕ್ ಮಾಡು.")
 
 def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
@@ -222,13 +226,11 @@ def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
 def main():
     data = load_data()
     
-    # ಮೊದಲಿಗೆ ನೀನು Telegram Bot ಗೆ ಏನಾದರೂ ವಿಡಿಯೋ ಕಳುಹಿಸಿದ್ದೀಯಾ ಎಂದು ಚೆಕ್ ಮಾಡುತ್ತದೆ
     if check_uploaded_video_from_telegram(data):
         save_data(data)
         print("ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ 14 ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸಲಾಗಿದೆ!")
         return
 
-    # ಇಲ್ಲದಿದ್ದರೆ YouTube ನಿಂದ ಹೊಸ ವಿಡಿಯೋ ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುತ್ತದೆ
     url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
         save_data(data)
