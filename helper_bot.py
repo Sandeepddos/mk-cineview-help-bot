@@ -38,19 +38,22 @@ def extract_14_frames(video_path, duration):
     os.makedirs("temp_media/frames", exist_ok=True)
     start_sec = 8 if duration > 30 else 2
     usable_duration = max(duration - 16, 10)
-    fps_rate = 14 / usable_duration
+    
+    # ಪ್ರತಿ ವಿಭಾಗದಿಂದ ಅತ್ಯಂತ ಶಾರ್ಪ್ ಇರುವ ಫ್ರೇಮ್ ಆರಿಸಲು thumbnail ಫಿಲ್ಟರ್ ಬಳಸಲಾಗಿದೆ
+    step_frames = max(int((usable_duration * 24) / 14), 10)
 
     vf_filter = (
-        f"fps={fps_rate},"
-        "crop=iw*0.86:ih*0.86:(iw-iw*0.86)/2:(ih-ih*0.86)/2,"
-        "scale=1920:-1:flags=lanczos,"
-        "unsharp=5:5:0.8:5:5:0.0"
+        f"thumbnail={step_frames},"
+        "crop=iw*0.93:ih*0.93:(iw-iw*0.93)/2:(ih-ih*0.93)/2,"
+        "scale=1280:-2:flags=lanczos,"
+        "cas=0.4"
     )
 
     cmd = [
         "ffmpeg", "-ss", str(start_sec), "-t", str(usable_duration),
         "-i", video_path, "-vf", vf_filter,
-        "-vframes", "14", "-q:v", "1", "temp_media/frames/frame_%02d.jpg",
+        "-vsync", "vfr", "-vframes", "14", "-q:v", "1",
+        "temp_media/frames/frame_%02d.jpg",
         "-hide_banner", "-loglevel", "error"
     ]
     subprocess.run(cmd, check=True)
@@ -97,15 +100,13 @@ def check_uploaded_video(data):
 
     f_unique_id = latest_video_obj.get("file_unique_id")
     file_size_mb = latest_video_obj.get("file_size", 0) / (1024 * 1024)
-    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ! ಸೈಜ್: {file_size_mb:.2f} MB")
 
-    # ಟೆಲಿಗ್ರಾಂ ಬಾಟ್ API 20MB ಗಿಂತ ದೊಡ್ಡ ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಬಿಡುವುದಿಲ್ಲ
     if file_size_mb >= 19.8:
         requests.post(
             f"{base_url}/sendMessage",
             data={
                 "chat_id": CHAT_ID,
-                "text": f"⚠️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋ <b>{file_size_mb:.1f} MB</b> ಇದೆ.\n\nTelegram Bot API ಕೇವಲ <b>20 MB ಒಳಗಿನ</b> ವಿಡಿಯೋಗಳನ್ನು ಮಾತ್ರ ಡೌನ್‌ಲೋಡ್ ಮಾಡಬಲ್ಲದು.\n\n👉 ದಯವಿಟ್ಟು ಟೆಲಿಗ್ರಾಂನಲ್ಲಿ ವಿಡಿಯೋ ಸೆಂಡ್ ಮಾಡುವಾಗ ಕ್ವಾಲಿಟಿ ಐಕಾನ್ ಒತ್ತಿ <b>480p</b> ಆಯ್ಕೆ ಮಾಡಿ ಕಳುಹಿಸು (ಅದು 10-15 MB ಆಗುತ್ತದೆ), ಆಗ 14 HD ಫೋಟೋಗಳು ಬರುತ್ತವೆ!",
+                "text": f"⚠️ ವಿಡಿಯೋ <b>{file_size_mb:.1f} MB</b> ಇದೆ. 20 MB ಒಳಗಿನ (720p ಅಥವಾ 480p) ಫೈಲ್ ಕಳುಹಿಸು.",
                 "parse_mode": "HTML"
             }
         )
@@ -117,10 +118,6 @@ def check_uploaded_video(data):
     file_info = requests.get(f"{base_url}/getFile", params={"file_id": file_id}).json()
     
     if not file_info.get("ok"):
-        requests.post(
-            f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": f"⚠️ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಎರರ್: {file_info.get('description')}"}
-        )
         data["processed_file_ids"].append(f_unique_id)
         return True
 
@@ -136,7 +133,7 @@ def check_uploaded_video(data):
         if frames:
             requests.post(
                 f"{base_url}/sendMessage",
-                data={"chat_id": CHAT_ID, "text": "✂️ ಲೋಗೋ ತೆಗೆದು ಕಟ್ ಮಾಡಿದ 14 HD ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
+                data={"chat_id": CHAT_ID, "text": "✨ ಶಾರ್ಪ್ ಕ್ವಾಲಿಟಿಯಲ್ಲಿ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
             )
             send_frames_album(frames)
             data["processed_file_ids"].append(f_unique_id)
@@ -198,20 +195,17 @@ def generate_script(title, channel, description, url):
 def main():
     data = load_data()
     
-    # 1. ನೀನು ಬಾಟ್‌ಗೆ ವಿಡಿಯೋ ಕಳುಹಿಸಿದ್ದರೆ ಮೊದಲು ಅದನ್ನೇ ಪ್ರೊಸೆಸ್ ಮಾಡುತ್ತದೆ (ಹೊಸ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದಿಲ್ಲ)
     if check_uploaded_video(data):
         save_data(data)
-        print("ವಿಡಿಯೋ ಪ್ರೊಸೆಸ್ ಮುಗಿದಿದೆ!")
         return
 
-    # 2. ಇಲ್ಲದಿದ್ದರೆ ಮಾತ್ರ ಹೊಸ YouTube ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುತ್ತದೆ
     url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
         save_data(data)
         return
 
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}\n\n💡 <i>ಈ ವಿಡಿಯೋವನ್ನು <b>480p (20MB ಒಳಗೆ)</b> ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಕಳುಹಿಸಿದರೆ 14 HD ಫೋಟೋ ಕಟ್ ಮಾಡಿ ಕೊಡುತ್ತೇನೆ!</i>"
+    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}\n\n💡 <i>ಈ ವಿಡಿಯೋವನ್ನು <b>20MB ಒಳಗೆ (720p/480p)</b> ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಕಳುಹಿಸಿದರೆ 14 ಶಾರ್ಪ್ ಫೋಟೋ ಕಟ್ ಮಾಡಿ ಕೊಡುತ್ತೇನೆ!</i>"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
     
     res = requests.post(
