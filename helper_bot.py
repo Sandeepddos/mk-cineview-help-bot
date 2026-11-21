@@ -17,17 +17,89 @@ SEARCH_QUERIES = [
     "Kannada Movie Box Office Collection Day 2 2026"
 ]
 
-def load_history():
+def load_data():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r") as f:
-            return json.load(f)
-    return []
+            data = json.load(f)
+            if isinstance(data, list):
+                return {"videos": data, "last_update_id": 0}
+            return data
+    return {"videos": [], "last_update_id": 0}
 
-def save_history(history):
+def save_data(data):
+    data["videos"] = data["videos"][-100:]
     with open(HISTORY_FILE, "w") as f:
-        json.dump(history[-100:], f, indent=2)
+        json.dump(data, f, indent=2)
 
-def search_latest_video(history):
+def extract_14_frames(video_path, duration):
+    os.makedirs("temp_media/frames", exist_ok=True)
+    start_sec = 8 if duration > 30 else 2
+    usable_duration = max(duration - 16, 10)
+    fps_rate = 14 / usable_duration
+
+    cmd = [
+        "ffmpeg", "-ss", str(start_sec), "-t", str(usable_duration),
+        "-i", video_path, "-vf", f"fps={fps_rate},scale=1280:-1",
+        "-vframes", "14", "-q:v", "2", "temp_media/frames/frame_%02d.jpg",
+        "-hide_banner", "-loglevel", "error"
+    ]
+    subprocess.run(cmd, check=True)
+    return sorted(glob.glob("temp_media/frames/frame_*.jpg"))
+
+def send_frames_album(frames):
+    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
+    for i in range(0, len(frames), 7):
+        chunk = frames[i:i+7]
+        media = []
+        files = {}
+        for idx, img_path in enumerate(chunk):
+            key = f"photo{idx}"
+            files[key] = open(img_path, "rb")
+            media.append({"type": "photo", "media": f"attach://{key}"})
+        
+        requests.post(
+            f"{base_url}/sendMediaGroup",
+            data={"chat_id": CHAT_ID, "media": json.dumps(media)},
+            files=files
+        )
+        for f in files.values():
+            f.close()
+        time.sleep(2)
+
+def check_uploaded_video_from_telegram(data):
+    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
+    offset = data.get("last_update_id", 0) + 1
+    res = requests.get(f"{base_url}/getUpdates", params={"offset": offset}).json()
+    
+    processed_any = False
+    for update in res.get("result", []):
+        data["last_update_id"] = update["update_id"]
+        msg = update.get("message", {})
+        if str(msg.get("chat", {}).get("id")) != str(CHAT_ID):
+            continue
+        
+        video_obj = msg.get("video") or msg.get("document")
+        if video_obj and video_obj.get("file_size", 0) < 49 * 1024 * 1024:
+            file_id = video_obj["file_id"]
+            duration = video_obj.get("duration", 120)
+            
+            file_info = requests.get(f"{base_url}/getFile", params={"file_id": file_id}).json()
+            file_path = file_info.get("result", {}).get("file_path")
+            if file_path:
+                os.makedirs("temp_media", exist_ok=True)
+                local_video = "temp_media/tg_upload.mp4"
+                dl_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+                with open(local_video, "wb") as f:
+                    f.write(requests.get(dl_url).content)
+                
+                frames = extract_14_frames(local_video, duration)
+                if frames:
+                    requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": "✂️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"})
+                    send_frames_album(frames)
+                    processed_any = True
+    return processed_any
+
+def search_latest_video(history_list):
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
@@ -40,7 +112,7 @@ def search_latest_video(history):
             for entry in info.get("entries", []):
                 vid_id = entry.get("id")
                 duration = entry.get("duration") or 0
-                if vid_id and vid_id not in history and 60 <= duration <= 480:
+                if vid_id and vid_id not in history_list and 60 <= duration <= 480:
                     return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
     return None, None, None
 
@@ -71,21 +143,6 @@ def try_download_video(url):
         print(f"ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಬ್ಲಾಕ್ ಆಗಿದೆ (Fallback ಬಳಸಲಾಗುತ್ತಿದೆ): {e}")
     return None, {}
 
-def extract_14_frames(video_path, duration):
-    os.makedirs("temp_media/frames", exist_ok=True)
-    start_sec = 8 if duration > 30 else 2
-    usable_duration = max(duration - 16, 10)
-    fps_rate = 14 / usable_duration
-
-    cmd = [
-        "ffmpeg", "-ss", str(start_sec), "-t", str(usable_duration),
-        "-i", video_path, "-vf", f"fps={fps_rate},scale=1280:-1",
-        "-vframes", "14", "-q:v", "2", "temp_media/frames/frame_%02d.jpg",
-        "-hide_banner", "-loglevel", "error"
-    ]
-    subprocess.run(cmd, check=True)
-    return sorted(glob.glob("temp_media/frames/frame_*.jpg"))
-
 def generate_script(title, channel, description, url):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
@@ -105,7 +162,7 @@ def generate_script(title, channel, description, url):
 4. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3-flash",
         contents=prompt
     )
     return response.text
@@ -114,7 +171,6 @@ def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     caption = f"🎬 <b>{title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
 
-    # 1. ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಆಗಿದ್ದರೆ ವಿಡಿಯೋ ಕಳುಹಿಸುತ್ತದೆ, ಇಲ್ಲದಿದ್ದರೆ ಥಂಬ್‌ನೇಲ್ + ಲಿಂಕ್ ಕಳುಹಿಸುತ್ತದೆ
     if video_path and os.path.exists(video_path) and os.path.getsize(video_path) < 49 * 1024 * 1024:
         with open(video_path, "rb") as vf:
             requests.post(
@@ -136,27 +192,9 @@ def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
 
     time.sleep(2)
 
-    # 2. ಫೋಟೋಗಳು ಕಟ್ ಆಗಿದ್ದರೆ 2 ಆಲ್ಬಮ್‌ಗಳಾಗಿ ಕಳುಹಿಸುತ್ತದೆ
     if frames:
-        for i in range(0, len(frames), 7):
-            chunk = frames[i:i+7]
-            media = []
-            files = {}
-            for idx, img_path in enumerate(chunk):
-                key = f"photo{idx}"
-                files[key] = open(img_path, "rb")
-                media.append({"type": "photo", "media": f"attach://{key}"})
-            
-            requests.post(
-                f"{base_url}/sendMediaGroup",
-                data={"chat_id": CHAT_ID, "media": json.dumps(media)},
-                files=files
-            )
-            for f in files.values():
-                f.close()
-            time.sleep(2)
+        send_frames_album(frames)
 
-    # 3. 3-4 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
     header = "📝 <b>3-4 ನಿಮಿಷದ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
@@ -167,9 +205,18 @@ def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
         time.sleep(1)
 
 def main():
-    history = load_history()
-    url, vid_id, search_title = search_latest_video(history)
+    data = load_data()
+    
+    # ಮೊದಲಿಗೆ ನೀನು Telegram Bot ಗೆ ಏನಾದರೂ ವಿಡಿಯೋ ಕಳುಹಿಸಿದ್ದೀಯಾ ಎಂದು ಚೆಕ್ ಮಾಡುತ್ತದೆ
+    if check_uploaded_video_from_telegram(data):
+        save_data(data)
+        print("ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ 14 ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸಲಾಗಿದೆ!")
+        return
+
+    # ಇಲ್ಲದಿದ್ದರೆ YouTube ನಿಂದ ಹೊಸ ವಿಡಿಯೋ ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುತ್ತದೆ
+    url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
+        save_data(data)
         print("ಯಾವುದೇ ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
@@ -188,8 +235,8 @@ def main():
     script_text = generate_script(title, channel, description, url)
     send_to_telegram(url, vid_id, video_path, frames, script_text, title)
 
-    history.append(vid_id)
-    save_history(history)
+    data["videos"].append(vid_id)
+    save_data(data)
     print("ಎಲ್ಲವೂ ಯಶಸ್ವಿಯಾಗಿ ಹೊಸ Telegram Bot ಗೆ ರವಾನೆಯಾಗಿದೆ!")
 
 if __name__ == "__main__":
