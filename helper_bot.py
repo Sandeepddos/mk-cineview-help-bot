@@ -7,7 +7,6 @@ import requests
 import yt_dlp
 from google import genai
 
-# Environment Variables (GitHub Secrets ನಿಂದ ಬರುತ್ತವೆ)
 BOT_TOKEN = os.environ["HELPER_BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
@@ -41,31 +40,39 @@ def search_latest_video(history):
             for entry in info.get("entries", []):
                 vid_id = entry.get("id")
                 duration = entry.get("duration") or 0
-                # 1 ನಿಮಿಷದಿಂದ 8 ನಿಮಿಷದ ಒಳಗಿನ ಹೊಸ ವಿಡಿಯೋ ಮಾತ್ರ ಆಯ್ಕೆ ಮಾಡುತ್ತದೆ
                 if vid_id and vid_id not in history and 60 <= duration <= 480:
-                    return f"https://www.youtube.com/watch?v={vid_id}", vid_id
-    return None, None
+                    return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
+    return None, None, None
 
-def download_video_and_info(url):
+def try_download_video(url):
     os.makedirs("temp_media", exist_ok=True)
     video_path = "temp_media/video.mp4"
     
     ydl_opts = {
-        # Telegram 50MB ಲಿಮಿಟ್ ಒಳಗಿರಲು 480p/720p MP4 ಫಾರ್ಮ್ಯಾಟ್
         "format": "best[height<=720][ext=mp4][filesize<48M]/best[height<=480][ext=mp4]/best[ext=mp4]",
         "outtmpl": video_path,
         "quiet": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["tv_embedded", "ios", "android"],
+                "player_skip": ["webpage", "configs"]
+            }
+        },
     }
     if os.path.exists("cookies.txt"):
         ydl_opts["cookiefile"] = "cookies.txt"
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        return video_path, info
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            if os.path.exists(video_path):
+                return video_path, info
+    except Exception as e:
+        print(f"ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಬ್ಲಾಕ್ ಆಗಿದೆ (Fallback ಬಳಸಲಾಗುತ್ತಿದೆ): {e}")
+    return None, {}
 
 def extract_14_frames(video_path, duration):
     os.makedirs("temp_media/frames", exist_ok=True)
-    # ಮೊದಲ 8 ಸೆಕೆಂಡ್ ಮತ್ತು ಕೊನೆಯ 8 ಸೆಕೆಂಡ್ ಟೈಟಲ್ ಕಾರ್ಡ್ ಬಿಟ್ಟು ಮಧ್ಯದ ಭಾಗ ಕಟ್ ಮಾಡುತ್ತದೆ
     start_sec = 8 if duration > 30 else 2
     usable_duration = max(duration - 16, 10)
     fps_rate = 14 / usable_duration
@@ -79,12 +86,8 @@ def extract_14_frames(video_path, duration):
     subprocess.run(cmd, check=True)
     return sorted(glob.glob("temp_media/frames/frame_*.jpg"))
 
-def generate_script(info, url):
+def generate_script(title, channel, description, url):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    title = info.get("title", "")
-    channel = info.get("channel", "")
-    description = (info.get("description") or "")[:1500]
-
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್. 
 ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ಮಾಹಿತಿಯನ್ನು ಆಧರಿಸಿ, ನಮ್ಮ ಚಾನೆಲ್‌ಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ರಿವ್ಯೂ/ಅನಾಲಿಸಿಸ್ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
@@ -93,7 +96,7 @@ def generate_script(info, url):
 - Title: {title}
 - Channel: {channel}
 - URL: {url}
-- Description: {description}
+- Description: {description[:1500]}
 
 ಮುಖ್ಯ ನಿಯಮಗಳು:
 1. ಸ್ಕ್ರಿಪ್ಟ್ ನೇರವಾಗಿ Intro ದಿಂದ ಶುರುವಾಗಲಿ (ಯಾವುದೇ ಪೀಠಿಕೆ ಅಥವಾ 'ಇಲ್ಲಿದೆ ಸ್ಕ್ರಿಪ್ಟ್' ಎಂಬ ಸಾಲುಗಳು ಬೇಡ).
@@ -107,12 +110,12 @@ def generate_script(info, url):
     )
     return response.text
 
-def send_to_telegram(url, video_path, frames, script_text, title):
+def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-
-    # 1. ಯೂಟ್ಯೂಬ್ ಲಿಂಕ್ ಮತ್ತು ವಿಡಿಯೋ ಫೈಲ್ ಕಳುಹಿಸುವುದು
     caption = f"🎬 <b>{title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
-    if os.path.exists(video_path) and os.path.getsize(video_path) < 49 * 1024 * 1024:
+
+    # 1. ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಆಗಿದ್ದರೆ ವಿಡಿಯೋ ಕಳುಹಿಸುತ್ತದೆ, ಇಲ್ಲದಿದ್ದರೆ ಥಂಬ್‌ನೇಲ್ + ಲಿಂಕ್ ಕಳುಹಿಸುತ್ತದೆ
+    if video_path and os.path.exists(video_path) and os.path.getsize(video_path) < 49 * 1024 * 1024:
         with open(video_path, "rb") as vf:
             requests.post(
                 f"{base_url}/sendVideo",
@@ -120,33 +123,40 @@ def send_to_telegram(url, video_path, frames, script_text, title):
                 files={"video": vf}
             )
     else:
-        requests.post(
-            f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"}
+        thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
+        res = requests.post(
+            f"{base_url}/sendPhoto",
+            data={"chat_id": CHAT_ID, "photo": thumb_url, "caption": caption, "parse_mode": "HTML"}
         )
+        if not res.ok:
+            requests.post(
+                f"{base_url}/sendMessage",
+                data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"}
+            )
 
     time.sleep(2)
 
-    # 2. 14 ಫೋಟೋಗಳನ್ನು 2 ಆಲ್ಬಮ್‌ಗಳಾಗಿ (7 + 7) ಕಳುಹಿಸುವುದು (Telegram ಒಂದೇ ಆಲ್ಬಮ್‌ನಲ್ಲಿ ಗರಿಷ್ಠ 10 ಫೋಟೋ ಮಾತ್ರ ಅನುಮತಿಸುತ್ತದೆ)
-    for i in range(0, len(frames), 7):
-        chunk = frames[i:i+7]
-        media = []
-        files = {}
-        for idx, img_path in enumerate(chunk):
-            key = f"photo{idx}"
-            files[key] = open(img_path, "rb")
-            media.append({"type": "photo", "media": f"attach://{key}"})
-        
-        requests.post(
-            f"{base_url}/sendMediaGroup",
-            data={"chat_id": CHAT_ID, "media": json.dumps(media)},
-            files=files
-        )
-        for f in files.values():
-            f.close()
-        time.sleep(2)
+    # 2. ಫೋಟೋಗಳು ಕಟ್ ಆಗಿದ್ದರೆ 2 ಆಲ್ಬಮ್‌ಗಳಾಗಿ ಕಳುಹಿಸುತ್ತದೆ
+    if frames:
+        for i in range(0, len(frames), 7):
+            chunk = frames[i:i+7]
+            media = []
+            files = {}
+            for idx, img_path in enumerate(chunk):
+                key = f"photo{idx}"
+                files[key] = open(img_path, "rb")
+                media.append({"type": "photo", "media": f"attach://{key}"})
+            
+            requests.post(
+                f"{base_url}/sendMediaGroup",
+                data={"chat_id": CHAT_ID, "media": json.dumps(media)},
+                files=files
+            )
+            for f in files.values():
+                f.close()
+            time.sleep(2)
 
-    # 3. 3-4 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು (4000 ಅಕ್ಷರಕ್ಕಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಭಾಗ ಮಾಡಿ ಕಳುಹಿಸುತ್ತದೆ)
+    # 3. 3-4 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
     header = "📝 <b>3-4 ನಿಮಿಷದ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
@@ -158,17 +168,25 @@ def send_to_telegram(url, video_path, frames, script_text, title):
 
 def main():
     history = load_history()
-    url, vid_id = search_latest_video(history)
+    url, vid_id, search_title = search_latest_video(history)
     if not url:
         print("ಯಾವುದೇ ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
     print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
-    video_path, info = download_video_and_info(url)
-    duration = info.get("duration", 120)
-    frames = extract_14_frames(video_path, duration)
-    script_text = generate_script(info, url)
-    send_to_telegram(url, video_path, frames, script_text, info.get("title", "New Video"))
+    video_path, info = try_download_video(url)
+    
+    title = info.get("title") or search_title
+    channel = info.get("channel") or "Kannada Cinema"
+    description = info.get("description") or title
+    duration = info.get("duration") or 120
+
+    frames = []
+    if video_path:
+        frames = extract_14_frames(video_path, duration)
+
+    script_text = generate_script(title, channel, description, url)
+    send_to_telegram(url, vid_id, video_path, frames, script_text, title)
 
     history.append(vid_id)
     save_history(history)
