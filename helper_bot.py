@@ -22,12 +22,15 @@ def load_data():
         with open(HISTORY_FILE, "r") as f:
             data = json.load(f)
             if isinstance(data, list):
-                return {"videos": data, "last_update_id": 0}
+                return {"videos": data, "last_update_id": 0, "processed_file_ids": []}
+            if "processed_file_ids" not in data:
+                data["processed_file_ids"] = []
             return data
-    return {"videos": [], "last_update_id": 0}
+    return {"videos": [], "last_update_id": 0, "processed_file_ids": []}
 
 def save_data(data):
     data["videos"] = data["videos"][-100:]
+    data["processed_file_ids"] = data["processed_file_ids"][-50:]
     with open(HISTORY_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
@@ -75,12 +78,11 @@ def send_frames_album(frames):
 
 def check_cut_command_video(data):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    offset = data.get("last_update_id", 0) + 1
-    res = requests.get(f"{base_url}/getUpdates", params={"offset": offset}).json()
+    # offset ಇಲ್ಲದೆ ಕೊನೆಯ ಎಲ್ಲಾ ಮೆಸೇಜ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸುತ್ತದೆ
+    res = requests.get(f"{base_url}/getUpdates").json()
     
     cut_video_obj = None
     for update in res.get("result", []):
-        data["last_update_id"] = max(data.get("last_update_id", 0), update["update_id"])
         msg = update.get("message", {})
         if str(msg.get("chat", {}).get("id")) != str(CHAT_ID):
             continue
@@ -88,19 +90,26 @@ def check_cut_command_video(data):
         video_obj = msg.get("video") or msg.get("document")
         caption = (msg.get("caption") or "").lower()
         
-        # ವಿಡಿಯೋ ಜೊತೆಗೆ /cut ಅಥವಾ cut ಅಥವಾ 'ವಿಡಿಯೋ' ಕಮಾಂಡ್ ಇದ್ದರೆ ಮಾತ್ರ ಹಿಡಿಯುತ್ತದೆ
-        if video_obj and any(cmd in caption for cmd in ["/cut", "cut", "ವಿಡಿಯೋ", "video"]):
-            cut_video_obj = video_obj
+        if video_obj:
+            f_unique_id = video_obj.get("file_unique_id")
+            if f_unique_id not in data["processed_file_ids"]:
+                if any(cmd in caption for cmd in ["/cut", "cut", "ವಿಡಿಯೋ", "video"]):
+                    cut_video_obj = video_obj
 
     if not cut_video_obj:
+        print("ಹೊಸ /cut ವಿಡಿಯೋ ಕಮಾಂಡ್ ಕಂಡುಬಂದಿಲ್ಲ.")
         return False
 
+    f_unique_id = cut_video_obj.get("file_unique_id")
     file_size_mb = cut_video_obj.get("file_size", 0) / (1024 * 1024)
+    print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ! ಸೈಜ್: {file_size_mb:.2f} MB")
+
     if file_size_mb >= 49:
         requests.post(
             f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": f"⚠️ ವಿಡಿಯೋ {file_size_mb:.1f} MB ಇದೆ (50MB ಗಿಂತ ಹೆಚ್ಚಿದೆ). ದಯವಿಟ್ಟು 480p ಅಥವಾ 720p (50MB ಒಳಗಿನ) ವಿಡಿಯೋಗೆ /cut ಹಾಕಿ ಕಳುಹಿಸು."}
+            data={"chat_id": CHAT_ID, "text": f"⚠️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋ {file_size_mb:.1f} MB ಇದೆ (50MB ಗಿಂತ ಹೆಚ್ಚಿದೆ). ದಯವಿಟ್ಟು 480p ಅಥವಾ 720p (50MB ಒಳಗಿನ) ವಿಡಿಯೋಗೆ /cut ಹಾಕಿ ಕಳುಹಿಸು."}
         )
+        data["processed_file_ids"].append(f_unique_id)
         return True
 
     file_id = cut_video_obj["file_id"]
@@ -122,6 +131,7 @@ def check_cut_command_video(data):
                 data={"chat_id": CHAT_ID, "text": "✂️ '/cut' ಕಮಾಂಡ್ ಸ್ವೀಕರಿಸಲಾಗಿದೆ! ಲೋಗೋ ತೆಗೆದು ಕಟ್ ಮಾಡಿದ 14 HD ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
             )
             send_frames_album(frames)
+            data["processed_file_ids"].append(f_unique_id)
             return True
     return False
 
@@ -180,13 +190,11 @@ def generate_script(title, channel, description, url):
 def main():
     data = load_data()
     
-    # 1. ನೀನು ವಿಡಿಯೋ ಜೊತೆ /cut ಅಥವಾ 'ವಿಡಿಯೋ' ಕಮಾಂಡ್ ಕಳುಹಿಸಿದ್ದರೆ ಕೇವಲ 14 ಫೋಟೋ ಮಾತ್ರ ಕಟ್ ಮಾಡುತ್ತದೆ
     if check_cut_command_video(data):
         save_data(data)
         print("ಕಮಾಂಡ್ ವಿಡಿಯೋದಿಂದ 14 HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸಲಾಗಿದೆ!")
         return
 
-    # 2. ಇಲ್ಲದಿದ್ದರೆ ಹೊಸ YouTube ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುತ್ತದೆ
     url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
         save_data(data)
