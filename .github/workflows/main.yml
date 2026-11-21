@@ -1,4 +1,4 @@
-name: MK Helper Bot (Trailer & Box Office)
+name: MK Helper Bot (Trailer, Script & Algenib Voice)
 
 on:
   workflow_dispatch:
@@ -22,12 +22,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install FFmpeg, Deno and Dependencies
+      - name: Install FFmpeg and Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg unzip curl
-          curl -fsSL https://deno.land/install.sh | sh
-          echo "$HOME/.deno/bin" >> $GITHUB_PATH
+          sudo apt-get install -y ffmpeg
           pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -41,7 +39,7 @@ jobs:
 
       - name: Save History to Repo
         run: |
-          rm -rf temp_media cookies.txt
+          rm -f voiceover.wav voiceover.mp3
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add helper_history.json
