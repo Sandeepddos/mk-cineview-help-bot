@@ -1,8 +1,6 @@
 import os
 import json
 import time
-import glob
-import subprocess
 import requests
 import yt_dlp
 from google import genai
@@ -17,128 +15,18 @@ SEARCH_QUERIES = [
     "Kannada Movie Box Office Collection Day 2 2026"
 ]
 
-def load_data():
+def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r") as f:
             data = json.load(f)
-            if isinstance(data, list):
-                return {"videos": data, "processed_file_ids": []}
-            if "processed_file_ids" not in data:
-                data["processed_file_ids"] = []
+            if isinstance(data, dict):
+                return data.get("videos", [])
             return data
-    return {"videos": [], "processed_file_ids": []}
+    return []
 
-def save_data(data):
-    data["videos"] = data["videos"][-100:]
-    data["processed_file_ids"] = data["processed_file_ids"][-50:]
+def save_history(videos):
     with open(HISTORY_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-def extract_14_frames(video_path, duration):
-    os.makedirs("temp_media/frames", exist_ok=True)
-    start_sec = 8 if duration > 30 else 2
-    usable_duration = max(duration - 16, 10)
-    
-    # ಪ್ರತಿ ವಿಭಾಗದಿಂದ ಅತ್ಯಂತ ಶಾರ್ಪ್ ಇರುವ ಫ್ರೇಮ್ ಆರಿಸಲು thumbnail ಫಿಲ್ಟರ್ ಬಳಸಲಾಗಿದೆ
-    step_frames = max(int((usable_duration * 24) / 14), 10)
-
-    vf_filter = (
-        f"thumbnail={step_frames},"
-        "crop=iw*0.93:ih*0.93:(iw-iw*0.93)/2:(ih-ih*0.93)/2,"
-        "scale=1280:-2:flags=lanczos,"
-        "cas=0.4"
-    )
-
-    cmd = [
-        "ffmpeg", "-ss", str(start_sec), "-t", str(usable_duration),
-        "-i", video_path, "-vf", vf_filter,
-        "-vsync", "vfr", "-vframes", "14", "-q:v", "1",
-        "temp_media/frames/frame_%02d.jpg",
-        "-hide_banner", "-loglevel", "error"
-    ]
-    subprocess.run(cmd, check=True)
-    return sorted(glob.glob("temp_media/frames/frame_*.jpg"))
-
-def send_frames_album(frames):
-    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    for i in range(0, len(frames), 7):
-        chunk = frames[i:i+7]
-        media = []
-        files = {}
-        for idx, img_path in enumerate(chunk):
-            key = f"photo{idx}"
-            files[key] = open(img_path, "rb")
-            media.append({"type": "photo", "media": f"attach://{key}"})
-        
-        requests.post(
-            f"{base_url}/sendMediaGroup",
-            data={"chat_id": CHAT_ID, "media": json.dumps(media)},
-            files=files
-        )
-        for f in files.values():
-            f.close()
-        time.sleep(2)
-
-def check_uploaded_video(data):
-    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    res = requests.get(f"{base_url}/getUpdates").json()
-    
-    latest_video_obj = None
-    for update in res.get("result", []):
-        msg = update.get("message", {})
-        if str(msg.get("chat", {}).get("id")) != str(CHAT_ID):
-            continue
-        
-        video_obj = msg.get("video") or msg.get("document")
-        if video_obj:
-            f_unique_id = video_obj.get("file_unique_id")
-            if f_unique_id not in data["processed_file_ids"]:
-                latest_video_obj = video_obj
-
-    if not latest_video_obj:
-        return False
-
-    f_unique_id = latest_video_obj.get("file_unique_id")
-    file_size_mb = latest_video_obj.get("file_size", 0) / (1024 * 1024)
-
-    if file_size_mb >= 19.8:
-        requests.post(
-            f"{base_url}/sendMessage",
-            data={
-                "chat_id": CHAT_ID,
-                "text": f"⚠️ ವಿಡಿಯೋ <b>{file_size_mb:.1f} MB</b> ಇದೆ. 20 MB ಒಳಗಿನ (720p ಅಥವಾ 480p) ಫೈಲ್ ಕಳುಹಿಸು.",
-                "parse_mode": "HTML"
-            }
-        )
-        data["processed_file_ids"].append(f_unique_id)
-        return True
-
-    file_id = latest_video_obj["file_id"]
-    duration = latest_video_obj.get("duration", 120)
-    file_info = requests.get(f"{base_url}/getFile", params={"file_id": file_id}).json()
-    
-    if not file_info.get("ok"):
-        data["processed_file_ids"].append(f_unique_id)
-        return True
-
-    file_path = file_info.get("result", {}).get("file_path")
-    if file_path:
-        os.makedirs("temp_media", exist_ok=True)
-        local_video = "temp_media/tg_upload.mp4"
-        dl_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-        with open(local_video, "wb") as f:
-            f.write(requests.get(dl_url).content)
-        
-        frames = extract_14_frames(local_video, duration)
-        if frames:
-            requests.post(
-                f"{base_url}/sendMessage",
-                data={"chat_id": CHAT_ID, "text": "✨ ಶಾರ್ಪ್ ಕ್ವಾಲಿಟಿಯಲ್ಲಿ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
-            )
-            send_frames_album(frames)
-            data["processed_file_ids"].append(f_unique_id)
-            return True
-    return False
+        json.dump(videos[-100:], f, indent=2)
 
 def search_latest_video(history_list):
     ydl_opts = {
@@ -157,7 +45,7 @@ def search_latest_video(history_list):
                     return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
     return None, None, None
 
-def generate_script(title, channel, description, url):
+def generate_script(title, url):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್. 
@@ -165,9 +53,7 @@ def generate_script(title, channel, description, url):
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
-- Channel: {channel}
 - URL: {url}
-- Description: {description[:1500]}
 
 ಮುಖ್ಯ ನಿಯಮಗಳು:
 1. ಸ್ಕ್ರಿಪ್ಟ್ ನೇರವಾಗಿ Intro ದಿಂದ ಶುರುವಾಗಲಿ (ಯಾವುದೇ ಪೀಠಿಕೆ ಅಥವಾ 'ಇಲ್ಲಿದೆ ಸ್ಕ್ರಿಪ್ಟ್' ಎಂಬ ಸಾಲುಗಳು ಬೇಡ).
@@ -187,25 +73,23 @@ def generate_script(title, channel, description, url):
                 model=model_name,
                 contents=prompt
             )
+            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}")
             return response.text
         except Exception:
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
 def main():
-    data = load_data()
+    history = load_history()
+    url, vid_id, search_title = search_latest_video(history)
     
-    if check_uploaded_video(data):
-        save_data(data)
-        return
-
-    url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
-        save_data(data)
+        print("ಯಾವುದೇ ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
+    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}\n\n💡 <i>ಈ ವಿಡಿಯೋವನ್ನು <b>20MB ಒಳಗೆ (720p/480p)</b> ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಕಳುಹಿಸಿದರೆ 14 ಶಾರ್ಪ್ ಫೋಟೋ ಕಟ್ ಮಾಡಿ ಕೊಡುತ್ತೇನೆ!</i>"
+    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
     
     res = requests.post(
@@ -219,7 +103,7 @@ def main():
         )
 
     time.sleep(2)
-    script_text = generate_script(search_title, "Kannada Cinema", search_title, url)
+    script_text = generate_script(search_title, url)
     
     header = "📝 <b>3-4 ನಿಮಿಷದ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
     full_msg = header + script_text
@@ -230,8 +114,9 @@ def main():
         )
         time.sleep(1)
 
-    data["videos"].append(vid_id)
-    save_data(data)
+    history.append(vid_id)
+    save_history(history)
+    print("ಯಶಸ್ವಿಯಾಗಿ ಹೊಸ ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸಲಾಗಿದೆ!")
 
 if __name__ == "__main__":
     main()
