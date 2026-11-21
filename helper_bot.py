@@ -94,7 +94,10 @@ def check_uploaded_video_from_telegram(data):
                 
                 frames = extract_14_frames(local_video, duration)
                 if frames:
-                    requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": "✂️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"})
+                    requests.post(
+                        f"{base_url}/sendMessage",
+                        data={"chat_id": CHAT_ID, "text": "✂️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋದಿಂದ ಕಟ್ ಮಾಡಿದ 14 ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
+                    )
                     send_frames_album(frames)
                     processed_any = True
     return processed_any
@@ -161,11 +164,23 @@ def generate_script(title, channel, description, url):
 3. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
 4. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
-    response = client.models.generate_content(
-        model="gemini-3-flash",
-        contents=prompt
-    )
-    return response.text
+    models_to_try = [
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash"
+    ]
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}")
+            return response.text
+        except Exception as e:
+            print(f"{model_name} ಕೆಲಸ ಮಾಡಲಿಲ್ಲ, ಮುಂದಿನ ಮಾಡೆಲ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...")
+    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
 def send_to_telegram(url, vid_id, video_path, frames, script_text, title):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
