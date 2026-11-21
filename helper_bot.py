@@ -22,11 +22,11 @@ def load_data():
         with open(HISTORY_FILE, "r") as f:
             data = json.load(f)
             if isinstance(data, list):
-                return {"videos": data, "last_update_id": 0, "processed_file_ids": []}
+                return {"videos": data, "processed_file_ids": []}
             if "processed_file_ids" not in data:
                 data["processed_file_ids"] = []
             return data
-    return {"videos": [], "last_update_id": 0, "processed_file_ids": []}
+    return {"videos": [], "processed_file_ids": []}
 
 def save_data(data):
     data["videos"] = data["videos"][-100:]
@@ -76,47 +76,55 @@ def send_frames_album(frames):
             f.close()
         time.sleep(2)
 
-def check_cut_command_video(data):
+def check_uploaded_video(data):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    # offset ಇಲ್ಲದೆ ಕೊನೆಯ ಎಲ್ಲಾ ಮೆಸೇಜ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸುತ್ತದೆ
     res = requests.get(f"{base_url}/getUpdates").json()
     
-    cut_video_obj = None
+    latest_video_obj = None
     for update in res.get("result", []):
         msg = update.get("message", {})
         if str(msg.get("chat", {}).get("id")) != str(CHAT_ID):
             continue
         
         video_obj = msg.get("video") or msg.get("document")
-        caption = (msg.get("caption") or "").lower()
-        
         if video_obj:
             f_unique_id = video_obj.get("file_unique_id")
             if f_unique_id not in data["processed_file_ids"]:
-                if any(cmd in caption for cmd in ["/cut", "cut", "ವಿಡಿಯೋ", "video"]):
-                    cut_video_obj = video_obj
+                latest_video_obj = video_obj
 
-    if not cut_video_obj:
-        print("ಹೊಸ /cut ವಿಡಿಯೋ ಕಮಾಂಡ್ ಕಂಡುಬಂದಿಲ್ಲ.")
+    if not latest_video_obj:
         return False
 
-    f_unique_id = cut_video_obj.get("file_unique_id")
-    file_size_mb = cut_video_obj.get("file_size", 0) / (1024 * 1024)
-    print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ! ಸೈಜ್: {file_size_mb:.2f} MB")
+    f_unique_id = latest_video_obj.get("file_unique_id")
+    file_size_mb = latest_video_obj.get("file_size", 0) / (1024 * 1024)
+    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ! ಸೈಜ್: {file_size_mb:.2f} MB")
 
-    if file_size_mb >= 49:
+    # ಟೆಲಿಗ್ರಾಂ ಬಾಟ್ API 20MB ಗಿಂತ ದೊಡ್ಡ ಫೈಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ಬಿಡುವುದಿಲ್ಲ
+    if file_size_mb >= 19.8:
         requests.post(
             f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": f"⚠️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋ {file_size_mb:.1f} MB ಇದೆ (50MB ಗಿಂತ ಹೆಚ್ಚಿದೆ). ದಯವಿಟ್ಟು 480p ಅಥವಾ 720p (50MB ಒಳಗಿನ) ವಿಡಿಯೋಗೆ /cut ಹಾಕಿ ಕಳುಹಿಸು."}
+            data={
+                "chat_id": CHAT_ID,
+                "text": f"⚠️ ನೀನು ಕಳುಹಿಸಿದ ವಿಡಿಯೋ <b>{file_size_mb:.1f} MB</b> ಇದೆ.\n\nTelegram Bot API ಕೇವಲ <b>20 MB ಒಳಗಿನ</b> ವಿಡಿಯೋಗಳನ್ನು ಮಾತ್ರ ಡೌನ್‌ಲೋಡ್ ಮಾಡಬಲ್ಲದು.\n\n👉 ದಯವಿಟ್ಟು ಟೆಲಿಗ್ರಾಂನಲ್ಲಿ ವಿಡಿಯೋ ಸೆಂಡ್ ಮಾಡುವಾಗ ಕ್ವಾಲಿಟಿ ಐಕಾನ್ ಒತ್ತಿ <b>480p</b> ಆಯ್ಕೆ ಮಾಡಿ ಕಳುಹಿಸು (ಅದು 10-15 MB ಆಗುತ್ತದೆ), ಆಗ 14 HD ಫೋಟೋಗಳು ಬರುತ್ತವೆ!",
+                "parse_mode": "HTML"
+            }
         )
         data["processed_file_ids"].append(f_unique_id)
         return True
 
-    file_id = cut_video_obj["file_id"]
-    duration = cut_video_obj.get("duration", 120)
+    file_id = latest_video_obj["file_id"]
+    duration = latest_video_obj.get("duration", 120)
     file_info = requests.get(f"{base_url}/getFile", params={"file_id": file_id}).json()
-    file_path = file_info.get("result", {}).get("file_path")
+    
+    if not file_info.get("ok"):
+        requests.post(
+            f"{base_url}/sendMessage",
+            data={"chat_id": CHAT_ID, "text": f"⚠️ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಎರರ್: {file_info.get('description')}"}
+        )
+        data["processed_file_ids"].append(f_unique_id)
+        return True
 
+    file_path = file_info.get("result", {}).get("file_path")
     if file_path:
         os.makedirs("temp_media", exist_ok=True)
         local_video = "temp_media/tg_upload.mp4"
@@ -128,7 +136,7 @@ def check_cut_command_video(data):
         if frames:
             requests.post(
                 f"{base_url}/sendMessage",
-                data={"chat_id": CHAT_ID, "text": "✂️ '/cut' ಕಮಾಂಡ್ ಸ್ವೀಕರಿಸಲಾಗಿದೆ! ಲೋಗೋ ತೆಗೆದು ಕಟ್ ಮಾಡಿದ 14 HD ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
+                data={"chat_id": CHAT_ID, "text": "✂️ ಲೋಗೋ ತೆಗೆದು ಕಟ್ ಮಾಡಿದ 14 HD ಫೋಟೋಗಳು ಇಲ್ಲಿವೆ:"}
             )
             send_frames_album(frames)
             data["processed_file_ids"].append(f_unique_id)
@@ -190,18 +198,20 @@ def generate_script(title, channel, description, url):
 def main():
     data = load_data()
     
-    if check_cut_command_video(data):
+    # 1. ನೀನು ಬಾಟ್‌ಗೆ ವಿಡಿಯೋ ಕಳುಹಿಸಿದ್ದರೆ ಮೊದಲು ಅದನ್ನೇ ಪ್ರೊಸೆಸ್ ಮಾಡುತ್ತದೆ (ಹೊಸ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದಿಲ್ಲ)
+    if check_uploaded_video(data):
         save_data(data)
-        print("ಕಮಾಂಡ್ ವಿಡಿಯೋದಿಂದ 14 HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸಲಾಗಿದೆ!")
+        print("ವಿಡಿಯೋ ಪ್ರೊಸೆಸ್ ಮುಗಿದಿದೆ!")
         return
 
+    # 2. ಇಲ್ಲದಿದ್ದರೆ ಮಾತ್ರ ಹೊಸ YouTube ಲಿಂಕ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುತ್ತದೆ
     url, vid_id, search_title = search_latest_video(data["videos"])
     if not url:
         save_data(data)
         return
 
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}\n\n💡 <i>ಈ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಕ್ಯಾಪ್ಶನ್‌ನಲ್ಲಿ <b>/cut</b> ಅಂತ ಹಾಕಿ ಕಳುಹಿಸಿದರೆ 14 HD ಫೋಟೋ ಕಟ್ ಮಾಡಿ ಕೊಡುತ್ತೇನೆ!</i>"
+    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}\n\n💡 <i>ಈ ವಿಡಿಯೋವನ್ನು <b>480p (20MB ಒಳಗೆ)</b> ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಕಳುಹಿಸಿದರೆ 14 HD ಫೋಟೋ ಕಟ್ ಮಾಡಿ ಕೊಡುತ್ತೇನೆ!</i>"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
     
     res = requests.post(
