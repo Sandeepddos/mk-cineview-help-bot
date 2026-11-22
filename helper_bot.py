@@ -12,10 +12,17 @@ CHAT_ID = os.environ["CHAT_ID"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 
 HISTORY_FILE = "helper_history.json"
+
+# ಮೊದಲು ಕನ್ನಡಕ್ಕೆ ಆದ್ಯತೆ, ನಂತರ Pan-India, Telugu, Tamil, Hindi ಟ್ರೈಲರ್ & ಬಾಕ್ಸ್ ಆಫೀಸ್
 SEARCH_QUERIES = [
     "New Kannada Movie Official Trailer 2026",
     "Kannada Movie Official Teaser 2026",
-    "Kannada Movie Box Office Collection 2026"
+    "Kannada Movie Box Office Collection 2026",
+    "Pan India Movie Official Trailer 2026",
+    "New Telugu Movie Official Trailer 2026",
+    "New Tamil Movie Official Trailer 2026",
+    "New Hindi Movie Official Trailer 2026",
+    "Indian Movie Box Office Collection Today 2026"
 ]
 
 def load_history():
@@ -32,10 +39,8 @@ def save_history(videos):
         json.dump(videos[-100:], f, indent=2)
 
 def is_within_24_hours(entry, ydl):
-    # ಮೊದಲು ಫ್ಲಾಟ್ ರಿಸಲ್ಟ್‌ನಲ್ಲೇ upload_date ಇದೆಯಾ ಚೆಕ್ ಮಾಡುತ್ತದೆ
     up_date = entry.get("upload_date")
     if not up_date:
-        # ಇಲ್ಲದಿದ್ದರೆ ವಿಡಿಯೋದ ನಿಖರವಾದ ದಿನಾಂಕವನ್ನು ಚೆಕ್ ಮಾಡುತ್ತದೆ
         try:
             full_info = ydl.extract_info(f"https://www.youtube.com/watch?v={entry['id']}", download=False)
             up_date = full_info.get("upload_date")
@@ -47,7 +52,6 @@ def is_within_24_hours(entry, ydl):
 
     try:
         video_dt = datetime.strptime(up_date, "%Y%m%d")
-        # ಕಳೆದ 1 ದಿನ (ಇಂದು ಅಥವಾ ನಿನ್ನೆ) ಅಪ್‌ಲೋಡ್ ಆಗಿದ್ದರೆ ಮಾತ್ರ True ಕೊಡುತ್ತದೆ
         cutoff_dt = datetime.utcnow() - timedelta(days=1)
         return video_dt.date() >= cutoff_dt.date()
     except Exception:
@@ -84,7 +88,7 @@ def generate_script(title, url):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್. 
-ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ಮಾಹಿತಿಯನ್ನು ಆಧರಿಸಿ, ನಮ್ಮ ಚಾನೆಲ್‌ಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ರಿವ್ಯೂ/ಅನಾಲಿಸಿಸ್ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
+ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ಮಾಹಿತಿಯನ್ನು ಆಧರಿಸಿ (ಅದು ಕನ್ನಡ, ತೆಲುಗು, ತಮಿಳು, ಹಿಂದಿ ಅಥವಾ ಯಾವುದೇ Pan-India ಸಿನಿಮಾವಾಗಿದ್ದರೂ ಸರಿ), ನಮ್ಮ ಕನ್ನಡ ಪ್ರೇಕ್ಷಕರಿಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ರಿವ್ಯೂ/ಅನಾಲಿಸಿಸ್ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
@@ -92,10 +96,11 @@ def generate_script(title, url):
 
 ಮುಖ್ಯ ನಿಯಮಗಳು:
 1. ಸ್ಕ್ರಿಪ್ಟ್ ನೇರವಾಗಿ Intro ದಿಂದ ಶುರುವಾಗಲಿ (ಯಾವುದೇ ಪೀಠಿಕೆ ಅಥವಾ 'ಇಲ್ಲಿದೆ ಸ್ಕ್ರಿಪ್ಟ್' ಎಂಬ ಸಾಲುಗಳು ಬೇಡ).
-2. Google AI Studio Voice (Algenib) ಓದಲು ಸುಲಭವಾಗುವಂತೆ ಕನ್ನಡ ಪದಗಳನ್ನು ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಪದಗಳನ್ನು (ಉದಾಹರಣೆಗೆ: Trailer, Box office, BGM, Action, Review, Subscribe, Collection) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ.
-3. ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (* ಅಥವಾ #) ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಬಳಸಬೇಡ, ಏಕೆಂದರೆ ಇದನ್ನು ನೇರವಾಗಿ AI Studio ಗೆ ಕಾಪಿ-ಪೇಸ್ಟ್ ಮಾಡಲಾಗುತ್ತದೆ.
-4. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
-5. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
+2. ಬೇರೆ ಭಾಷೆಯ ಸಿನಿಮಾವಾಗಿದ್ದರೆ, ಕರ್ನಾಟಕದ ಪ್ರೇಕ್ಷಕರಿಗೆ ಮತ್ತು ಸ್ಯಾಂಡಲ್‌ವುಡ್ ಅಭಿಮಾನಿಗಳಿಗೆ ಈ ಸಿನಿಮಾ ಯಾಕೆ ವಿಶೇಷ, ಇದರ ಪ್ಲಸ್ ಪಾಯಿಂಟ್ಸ್ ಏನು ಎಂಬುದನ್ನು ಕನ್ನಡದಲ್ಲೇ ರೋಚಕವಾಗಿ ವಿವರಿಸು.
+3. Google AI Studio Voice (Algenib) ಓದಲು ಸುಲಭವಾಗುವಂತೆ ಕನ್ನಡ ಪದಗಳನ್ನು ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಪದಗಳನ್ನು (ಉದಾಹರಣೆಗೆ: Trailer, Teaser, Pan-India, Box office, BGM, Action, Review, Subscribe, Collection) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ.
+4. ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (* ಅಥವಾ #) ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಬಳಸಬೇಡ, ಏಕೆಂದರೆ ಇದನ್ನು ನೇರವಾಗಿ AI Studio ಗೆ ಕಾಪಿ-ಪೇಸ್ಟ್ ಮಾಡಲಾಗುತ್ತದೆ.
+5. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
+6. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
     available_models = []
     for m in client.models.list():
