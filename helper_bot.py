@@ -2,7 +2,6 @@ import os
 import json
 import time
 import urllib.parse
-from datetime import datetime, timedelta
 import requests
 import yt_dlp
 from google import genai
@@ -13,6 +12,7 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 
 HISTORY_FILE = "helper_history.json"
 
+# ಮೊದಲು ಕನ್ನಡಕ್ಕೆ ಆದ್ಯತೆ, ನಂತರ Pan-India, Telugu, Tamil, Hindi ಟ್ರೈಲರ್ & ಬಾಕ್ಸ್ ಆಫೀಸ್
 SEARCH_QUERIES = [
     "New Kannada Movie Official Trailer 2026",
     "Kannada Movie Official Teaser 2026",
@@ -23,6 +23,9 @@ SEARCH_QUERIES = [
     "New Hindi Movie Official Trailer 2026",
     "Indian Movie Box Office Collection Today 2026"
 ]
+
+# ಫೇಕ್ / ಫ್ಯಾನ್ ಮೇಡ್ ವಿಡಿಯೋಗಳನ್ನು ತಡೆಯಲು ಈ ಪದಗಳಿದ್ದರೆ ಸ್ಕಿಪ್ ಮಾಡುತ್ತದೆ
+IGNORE_WORDS = ["concept", "fan made", "fan-made", "spoof", "reaction", "full movie"]
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -37,37 +40,16 @@ def save_history(videos):
     with open(HISTORY_FILE, "w") as f:
         json.dump(videos[-100:], f, indent=2)
 
-def is_recent_video(entry, ydl):
-    up_date = entry.get("upload_date")
-    if not up_date:
-        try:
-            full_info = ydl.extract_info(f"https://www.youtube.com/watch?v={entry['id']}", download=False)
-            up_date = full_info.get("upload_date")
-        except Exception:
-            return False
-
-    if not up_date:
-        return False
-
-    try:
-        video_dt = datetime.strptime(up_date, "%Y%m%d")
-        # ಭಾರತೀಯ ಕಾಲಮಾನ (IST = UTC + 5:30) ಪ್ರಕಾರ ಕಳೆದ 2 ದಿನಗಳ (ಇಂದು ಮತ್ತು ನಿನ್ನೆ) ವಿಡಿಯೋ ಮಾತ್ರ ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ
-        ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
-        cutoff_dt = ist_now - timedelta(days=2)
-        return video_dt.date() >= cutoff_dt.date()
-    except Exception:
-        return False
-
 def search_latest_video(history_list):
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
-        "playlistend": 6
+        "playlistend": 8
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for query in SEARCH_QUERIES:
             encoded_q = urllib.parse.quote(query)
-            # sp=EgIIAg%253D%253D -> YouTube ನ 'Last 24 hours (Today)' ಫಿಲ್ಟರ್
+            # sp=EgIIAg%253D%253D -> YouTube ನ ಅಧಿಕೃತ 'Last 24 hours (Today)' ಫಿಲ್ಟರ್
             search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
             try:
                 info = ydl.extract_info(search_url, download=False)
@@ -77,12 +59,18 @@ def search_latest_video(history_list):
 
             for entry in info.get("entries", []):
                 vid_id = entry.get("id")
+                title = entry.get("title") or ""
                 duration = entry.get("duration") or 0
-                if vid_id and vid_id not in history_list and 60 <= duration <= 480:
-                    if is_recent_video(entry, ydl):
-                        return f"https://www.youtube.com/watch?v={vid_id}", vid_id, entry.get("title", "New Video")
-                    else:
-                        print(f"ಹಳೆಯ ವಿಡಿಯೋ ಸ್ಕಿಪ್ ಮಾಡಲಾಗಿದೆ: {entry.get('title')}")
+                
+                if not vid_id or vid_id in history_list:
+                    continue
+                if not (60 <= duration <= 480):
+                    continue
+                if any(bad_word in title.lower() for bad_word in IGNORE_WORDS):
+                    print(f"ಫೇಕ್/ಅನಗತ್ಯ ವಿಡಿಯೋ ಸ್ಕಿಪ್: {title}")
+                    continue
+
+                return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
     return None, None, None
 
 def generate_script(title, url):
@@ -126,10 +114,10 @@ def main():
     url, vid_id, search_title = search_latest_video(history)
     
     if not url:
-        print("ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
+        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
-    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
+    print(f"ಹೊಸ 24 ಗಂಟೆಗಳ ಒಳಗಿನ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
