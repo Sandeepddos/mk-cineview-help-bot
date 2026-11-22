@@ -12,20 +12,25 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 
 HISTORY_FILE = "helper_history.json"
 
-# ಮೊದಲು ಕನ್ನಡಕ್ಕೆ ಆದ್ಯತೆ, ನಂತರ Pan-India, Telugu, Tamil, Hindi ಟ್ರೈಲರ್ & ಬಾಕ್ಸ್ ಆಫೀಸ್
 SEARCH_QUERIES = [
-    "New Kannada Movie Official Trailer 2026",
+    "Kannada Movie Official Trailer 2026",
     "Kannada Movie Official Teaser 2026",
     "Kannada Movie Box Office Collection 2026",
     "Pan India Movie Official Trailer 2026",
-    "New Telugu Movie Official Trailer 2026",
-    "New Tamil Movie Official Trailer 2026",
-    "New Hindi Movie Official Trailer 2026",
-    "Indian Movie Box Office Collection Today 2026"
+    "Telugu Movie Official Trailer 2026",
+    "Tamil Movie Official Trailer 2026",
+    "Hindi Movie Official Trailer 2026",
+    "Box Office Collection Day 1 2026"
 ]
 
-# ಫೇಕ್ / ಫ್ಯಾನ್ ಮೇಡ್ ವಿಡಿಯೋಗಳನ್ನು ತಡೆಯಲು ಈ ಪದಗಳಿದ್ದರೆ ಸ್ಕಿಪ್ ಮಾಡುತ್ತದೆ
-IGNORE_WORDS = ["concept", "fan made", "fan-made", "spoof", "reaction", "full movie"]
+# ಬೇರೆಯವರ ರಿವ್ಯೂ, ಫೇಕ್ ಟ್ರೈಲರ್, ಎಕ್ಸ್‌ಪ್ಲನೇಷನ್ ವಿಡಿಯೋಗಳನ್ನು ಸಂಪೂರ್ಣ ಬ್ಲಾಕ್ ಮಾಡಲು:
+IGNORE_WORDS = [
+    "review", "explained", "ending", "concept", "fan made", "fan-made",
+    "spoof", "reaction", "full movie", "roast", "breakdown", "dubbed"
+]
+
+# ಟೈಟಲ್‌ನಲ್ಲಿ ಈ ಅಧಿಕೃತ ಪದಗಳಲ್ಲಿ ಒಂದಾದರೂ ಇರಲೇಬೇಕು:
+REQUIRED_WORDS = ["official trailer", "official teaser", "box office"]
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -44,12 +49,12 @@ def search_latest_video(history_list):
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
-        "playlistend": 8
+        "playlistend": 10
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for query in SEARCH_QUERIES:
             encoded_q = urllib.parse.quote(query)
-            # sp=EgIIAg%253D%253D -> YouTube ನ ಅಧಿಕೃತ 'Last 24 hours (Today)' ಫಿಲ್ಟರ್
+            # sp=EgIIAg%253D%253D -> ಕಳೆದ 24 ಗಂಟೆಗಳ (Today) ಫಿಲ್ಟರ್
             search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
             try:
                 info = ydl.extract_info(search_url, download=False)
@@ -60,14 +65,29 @@ def search_latest_video(history_list):
             for entry in info.get("entries", []):
                 vid_id = entry.get("id")
                 title = entry.get("title") or ""
+                title_lower = title.lower()
                 duration = entry.get("duration") or 0
+                view_count = entry.get("view_count") or 0
                 
                 if not vid_id or vid_id in history_list:
                     continue
-                if not (60 <= duration <= 480):
+                
+                # 1. ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ 1 ರಿಂದ 4.5 ನಿಮಿಷದ ಒಳಗಿರಬೇಕು (ದೊಡ್ಡ ರಿವ್ಯೂ ವಿಡಿಯೋ ಬೇಡ)
+                if not (60 <= duration <= 270):
                     continue
-                if any(bad_word in title.lower() for bad_word in IGNORE_WORDS):
-                    print(f"ಫೇಕ್/ಅನಗತ್ಯ ವಿಡಿಯೋ ಸ್ಕಿಪ್: {title}")
+
+                # 2. ಬೇರೆಯವರ ರಿವ್ಯೂ ಅಥವಾ ಫೇಕ್ ವಿಡಿಯೋ ಪದಗಳಿದ್ದರೆ ಸ್ಕಿಪ್
+                if any(bad in title_lower for bad in IGNORE_WORDS):
+                    print(f"ರಿವ್ಯೂ/ಅನಗತ್ಯ ವಿಡಿಯೋ ಸ್ಕಿಪ್: {title}")
+                    continue
+
+                # 3. Official Trailer / Teaser / Box Office ಪದ ಕಡ್ಡಾಯ
+                if not any(req in title_lower for req in REQUIRED_WORDS):
+                    continue
+
+                # 4. ಕನಿಷ್ಠ 15,000+ ವ್ಯೂಸ್ ಇದ್ದರೆ ಮಾತ್ರ ನಿಜವಾದ ಹೊಸ ಟ್ರೈಲರ್ ಅಂತ ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ
+                if view_count > 0 and view_count < 15000:
+                    print(f"ಕಡಿಮೆ ವ್ಯೂಸ್ ಇರುವ ಚಿಕ್ಕ ಚಾನೆಲ್ ವಿಡಿಯೋ ಸ್ಕಿಪ್ ({view_count} views): {title}")
                     continue
 
                 return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
@@ -77,7 +97,7 @@ def generate_script(title, url):
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್. 
-ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ಮಾಹಿತಿಯನ್ನು ಆಧರಿಸಿ (ಅದು ಕನ್ನಡ, ತೆಲುಗು, ತಮಿಳು, ಹಿಂದಿ ಅಥವಾ ಯಾವುದೇ Pan-India ಸಿನಿಮಾವಾಗಿದ್ದರೂ ಸರಿ), ನಮ್ಮ ಕನ್ನಡ ಪ್ರೇಕ್ಷಕರಿಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ರಿವ್ಯೂ/ಅನಾಲಿಸಿಸ್ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
+ಈ ಕೆಳಗಿನ ಅಧಿಕೃತ ಸಿನಿಮಾ ಟ್ರೈಲರ್ / ಟೀಸರ್ / ಬಾಕ್ಸ್ ಆಫೀಸ್ ಅಪ್‌ಡೇಟ್ ಆಧರಿಸಿ, ನಮ್ಮ ಕನ್ನಡ ಪ್ರೇಕ್ಷಕರಿಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ರಿವ್ಯೂ/ಅನಾಲಿಸಿಸ್ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
@@ -114,10 +134,10 @@ def main():
     url, vid_id, search_title = search_latest_video(history)
     
     if not url:
-        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
+        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಅಧಿಕೃತ ಹೊಸ ಟ್ರೈಲರ್ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
         return
 
-    print(f"ಹೊಸ 24 ಗಂಟೆಗಳ ಒಳಗಿನ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
+    print(f"ಅಧಿಕೃತ ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
