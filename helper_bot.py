@@ -193,7 +193,7 @@ def generate_algenib_voice(script_text: str):
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        temperature=1,
+        temperature=0.45,
         response_modalities=["audio"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
