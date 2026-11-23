@@ -59,6 +59,7 @@ def save_history(videos):
         json.dump(videos[-100:], f, indent=2)
 
 def search_latest_video(history_list):
+    print("ಹೊಸ ಕನ್ನಡ ವಿಡಿಯೋ ಹುಡುಕಲಾಗುತ್ತಿದೆ...", flush=True)
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
@@ -72,7 +73,7 @@ def search_latest_video(history_list):
             try:
                 info = ydl.extract_info(search_url, download=False)
             except Exception as e:
-                print(f"ಸರ್ಚ್ ಎರರ್: {e}")
+                print(f"ಸರ್ಚ್ ಎರರ್: {e}", flush=True)
                 continue
 
             for entry in info.get("entries", []):
@@ -104,22 +105,27 @@ def search_latest_video(history_list):
     return None, None, None
 
 def generate_script(title, url):
+    print("ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
-ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್. 
-ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ (ಕನ್ನಡ ಸಿನಿಮಾದ ಟ್ರೈಲರ್, OTT ರಿಲೀಸ್ ಅಪ್‌ಡೇಟ್, ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಅಥವಾ Pan-India ಸಿನಿಮಾ ಅಪ್‌ಡೇಟ್), ನಮ್ಮ ಕನ್ನಡ ಪ್ರೇಕ್ಷಕರಿಗೆ ಸರಿಹೊಂದುವಂತೆ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 450 ರಿಂದ 550 ಪದಗಳ) ಆಕರ್ಷಕ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
+ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
+ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ, ವೀಕ್ಷಕರನ್ನು ಕೊನೆಯವರೆಗೂ ಹಿಡಿದಿಟ್ಟುಕೊಳ್ಳುವ (High-Retention), ಅತ್ಯಂತ ಪ್ರೊಫೆಷನಲ್ ಮತ್ತು ಸಿನಿಮ್ಯಾಟಿಕ್ ಶೈಲಿಯ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 500 ರಿಂದ 600 ಪದಗಳ) ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
 - URL: {url}
 
-ಮುಖ್ಯ ನಿಯಮಗಳು:
-1. ಸ್ಕ್ರಿಪ್ಟ್ ನೇರವಾಗಿ Intro ದಿಂದ ಶುರುವಾಗಲಿ (ಯಾವುದೇ ಪೀಠಿಕೆ ಅಥವಾ 'ಇಲ್ಲಿದೆ ಸ್ಕ್ರಿಪ್ಟ್' ಎಂಬ ಸಾಲುಗಳು ಬೇಡ).
-2. OTT ರಿಲೀಸ್ ಅಪ್‌ಡೇಟ್ ಆಗಿದ್ದರೆ ಯಾವ ಸಿನಿಮಾ ಯಾವ OTT ಪ್ಲಾಟ್‌ಫಾರ್ಮ್‌ನಲ್ಲಿ (Prime Video, Netflix, Zee5, JioHotstar, Sun NXT) ಬರುತ್ತಿದೆ ಎಂಬುದನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ವಿವರಿಸು. ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಆಗಿದ್ದರೆ ಗಳಿಕೆಯ ಅಂಕಿಅಂಶಗಳನ್ನು ರೋಚಕವಾಗಿ ಹೇಳು.
-3. Google AI Studio Voice (Algenib) ಓದಲು ಸುಲಭವಾಗುವಂತೆ ಕನ್ನಡ ಪದಗಳನ್ನು ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಪದಗಳನ್ನು (ಉದಾಹರಣೆಗೆ: Trailer, Teaser, OTT, Prime Video, Netflix, Zee5, JioHotstar, Box office, BGM, Action, Review, Subscribe, Collection) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ.
-4. ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (* ಅಥವಾ #) ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಬಳಸಬೇಡ, ಏಕೆಂದರೆ ಇದನ್ನು ನೇರವಾಗಿ AI Voice ಓದುತ್ತದೆ.
-5. ಅಂಕಿಅಂಶಗಳನ್ನು (Numbers) ಸ್ಪಷ್ಟವಾಗಿ ಓದುವಂತೆ ಬರೆ.
-6. ಕೊನೆಯಲ್ಲಿ 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
+ಸ್ಕ್ರಿಪ್ಟ್ ರಚನೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ನಿಯಮಗಳು:
+1. ಪವರ್‌ಫುಲ್ ಹುಕ್ (The Hook - ಮೊದಲ 2-3 ಸಾಲುಗಳು): ಬೋರಿಂಗ್ ಆಗಿ 'ನಮಸ್ಕಾರ ಸ್ವಾಗತ' ಎಂದು ಶುರು ಮಾಡಬೇಡ! ನೇರವಾಗಿ ಈ ಸಿನಿಮಾದ ಅತ್ಯಂತ ರೋಚಕ ಅಂಶ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ಸಂಚಲನದ ಪಂಚ್ ಲೈನ್‌ನೊಂದಿಗೆ ಶುರುಮಾಡು. ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಎಂದು ಮುಂದುವರಿಸು.
+2. ನಿರಂತರ ಮತ್ತು ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (Deep Professional Breakdown):
+   - ಸ್ಕ್ರಿಪ್ಟ್ ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳದೆ, ನಿರಂತರವಾದ ನಿರೂಪಣೆಯೊಂದಿಗೆ ವಿಶ್ಲೇಷಿಸು.
+   - ಟ್ರೈಲರ್ ಅಥವಾ ಟೀಸರ್ ಆಗಿದ್ದರೆ: ಕಥೆಯ ತಿರುಳು, ನಟರ ಪರ್ಫಾರ್ಮೆನ್ಸ್, ನಿರ್ದೇಶಕರ ವಿಷನ್, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography), ಎಡಿಟಿಂಗ್ ಮತ್ತು ಸಿನಿಮಾದ ಪ್ಲಸ್-ಮೈನಸ್ ಅಂಶಗಳನ್ನು ಒಬ್ಬ ಪ್ರೊಫೆಷನಲ್ ವಿಮರ್ಶಕನ ಶೈಲಿಯಲ್ಲಿ ವಿಶ್ಲೇಷಿಸು.
+   - OTT ಅಥವಾ ವಾರದ ರಿಲೀಸ್ ಅಪ್‌ಡೇಟ್ ಆಗಿದ್ದರೆ: ಯಾವ ಸಿನಿಮಾ, ಯಾವ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ (Prime Video, Netflix, Zee5, JioHotstar, Sun NXT), ಯಾವ ದಿನಾಂಕ, ಅದರ ಜಾನರ್ (Genre) ಮತ್ತು ವೀಕ್ಷಕರು ಯಾಕೆ ಈ ಸಿನಿಮಾವನ್ನು ಮಿಸ್ ಮಾಡಬಾರದು ಎಂಬುದನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ವಿವರಿಸು.
+   - ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಆಗಿದ್ದರೆ: ಕರ್ನಾಟಕದ ಕಲೆಕ್ಷನ್, ವರ್ಲ್ಡ್‌ವೈಡ್ ಗಳಿಕೆ, ಬಜೆಟ್ ಮತ್ತು ರಿಕವರಿ ಲೆಕ್ಕಾಚಾರವನ್ನು ರೋಚಕವಾಗಿ ಪ್ರಸ್ತುತಪಡಿಸು.
+3. ನೈಸರ್ಗಿಕ ನಿರೂಪಣೆ (Storytelling Flow): ಒಂದಕ್ಕೊಂದು ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳು ಸುಗಮವಾಗಿ ಜೋಡಣೆಯಾಗಿರಲಿ. ಓದುವಾಗ ಪಂಚ್ ಮತ್ತು ಎನರ್ಜಿ ಇರುವಂತೆ ಚಿಕ್ಕ ಮತ್ತು ಪರಿಣಾಮಕಾರಿ ವಾಕ್ಯಗಳನ್ನು ಬಳಸು.
+4. AI Voice (Algenib) ಉಚ್ಚಾರಣೆಗೆ ಅನುಕೂಲ: ಕನ್ನಡ ಪದಗಳನ್ನು ಶುದ್ಧ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (ಉದಾಹರಣೆಗೆ: Trailer, Teaser, Pan-India, Box office, BGM, Cinematography, Screenplay, Thriller, Action, OTT, Prime Video, Netflix, Zee5, JioHotstar, Blockbuster, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 'MK CINEVIEW ಕನ್ನಡ' ಎಂಬುದನ್ನು ಇಂಗ್ಲಿಷ್ ಮತ್ತು ಕನ್ನಡದಲ್ಲೇ ಸ್ಪಷ್ಟವಾಗಿ ಬರೆ.
+5. ಕ್ಲೀನ್ ಫಾರ್ಮ್ಯಾಟ್: ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (*, **, #), ಬ್ರಾಕೆಟ್ ಸೂಚನೆಗಳು ([Music], [Pause]) ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಬಳಸಬೇಡ — ಏಕೆಂದರೆ ಇದನ್ನು ನೇರವಾಗಿ AI Voice ಓದುತ್ತದೆ.
+6. ಪ್ರೊಫೆಷನಲ್ ಕ್ಲೋಸಿಂಗ್ (ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ): ಸ್ಕ್ರಿಪ್ಟ್‌ನ ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರೇಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
 """
     available_models = []
     for m in client.models.list():
@@ -133,7 +139,7 @@ def generate_script(title, url):
                 model=model_name,
                 contents=prompt
             )
-            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}")
+            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}", flush=True)
             return response.text
         except Exception:
             continue
@@ -142,8 +148,7 @@ def generate_script(title, url):
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
     rate = 24000
-    parts = mime_type.split(";")
-    for param in parts:
+    for param in mime_type.split(";"):
         param = param.strip()
         if param.lower().startswith("rate="):
             try:
@@ -178,7 +183,6 @@ def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
     return header + audio_data
 
 def generate_algenib_voice(script_text: str):
-    # ನೀನು ಕೊಟ್ಟ ಅಧಿಕೃತ AI Studio v1beta ಸ್ಟ್ರೀಮಿಂಗ್ ಕೋಡ್ ಬಳಸಲಾಗಿದೆ
     client = genai.Client(
         api_key=GEMINI_API_KEY,
         http_options=types.HttpOptions(api_version="v1beta"),
@@ -205,7 +209,7 @@ def generate_algenib_voice(script_text: str):
     )
 
     try:
-        print("AI Studio v1beta ಸ್ಟ್ರೀಮಿಂಗ್ ಮೂಲಕ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ...")
+        print("AI Studio v1beta ಸ್ಟ್ರೀಮಿಂಗ್ ಮೂಲಕ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ...", flush=True)
         audio_data = bytearray()
         mime_type = ""
         for chunk in client.models.generate_content_stream(
@@ -230,10 +234,10 @@ def generate_algenib_voice(script_text: str):
                 ["ffmpeg", "-y", "-i", wav_path, "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
                 check=True
             )
-            print("Algenib ವಾಯ್ಸ್ MP3 ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!")
+            print("Algenib ವಾಯ್ಸ್ MP3 ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
             return mp3_path
     except Exception as e:
-        print(f"Algenib TTS ಎರರ್: {e}")
+        print(f"Algenib TTS ಎರರ್: {e}", flush=True)
     return None
 
 def main():
@@ -241,10 +245,10 @@ def main():
     url, vid_id, search_title = search_latest_video(history)
     
     if not url:
-        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್, OTT ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.")
+        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್, OTT ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.", flush=True)
         return
 
-    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}")
+    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
     thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
@@ -262,7 +266,7 @@ def main():
     time.sleep(2)
     script_text = generate_script(search_title, url)
     
-    header = "📝 <b>3-4 ನಿಮಿಷದ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
+    header = "📝 <b>ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
         requests.post(
@@ -283,7 +287,7 @@ def main():
                 },
                 files={"audio": af}
             )
-        print("Algenib ವಾಯ್ಸ್ MP3 ಫೈಲ್ Telegram ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ!")
+        print("Algenib ವಾಯ್ಸ್ MP3 ಫೈಲ್ Telegram ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ!", flush=True)
     else:
         requests.post(
             f"{base_url}/sendMessage",
@@ -292,7 +296,7 @@ def main():
 
     history.append(vid_id)
     save_history(history)
-    print("ಯಶಸ್ವಿಯಾಗಿ ಎಲ್ಲಾ ಕೆಲಸ ಪೂರ್ಣಗೊಂಡಿದೆ!")
+    print("ಯಶಸ್ವಿಯಾಗಿ ಎಲ್ಲಾ ಕೆಲಸ ಪೂರ್ಣಗೊಂಡಿದೆ!", flush=True)
 
 if __name__ == "__main__":
     main()
