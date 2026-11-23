@@ -18,6 +18,8 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 HISTORY_FILE = "helper_history.json"
 VOICE_NAME = "Algenib"
 
+# ಹಂತ 1: ಮೊದಲು ಸಂಪೂರ್ಣವಾಗಿ ಕನ್ನಡ ಸಿನಿಮಾ (ಟ್ರೈಲರ್, OTT, ಬಾಕ್ಸ್ ಆಫೀಸ್) ಮಾತ್ರ ಹುಡುಕುತ್ತದೆ
+# ಹಂತ 2: ಕನ್ನಡದಲ್ಲಿ ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಏನೂ ಸಿಗದಿದ್ದರೆ ಮಾತ್ರ ಕೊನೆಯ 3 ಬೇರೆ ಭಾಷೆ/Pan-India ಕಡೆ ಹೋಗುತ್ತದೆ
 SEARCH_QUERIES = [
     # --- ಕನ್ನಡಕ್ಕೆ ಮೊದಲ ಆದ್ಯತೆ (Kannada Priority) ---
     "New Kannada Movie Official Trailer 2026",
@@ -135,17 +137,27 @@ def search_video(history_list, custom_topic=None):
                 return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
     return None, None, None
 
-def get_text_model(client):
-    for m in client.models.list():
-        name = m.name.replace("models/", "")
-        if "gemini" in name and ("flash" in name or "pro" in name) and "tts" not in name and "image" not in name:
-            return name
-    return "gemini-2.5-flash"
+def get_available_text_models(client):
+    models = ["gemini-3.0-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
+    try:
+        for m in client.models.list():
+            name = m.name.replace("models/", "")
+            if (
+                "gemini" in name
+                and ("flash" in name or "pro" in name)
+                and "tts" not in name
+                and "image" not in name
+                and "2.5-flash" not in name
+                and name not in models
+            ):
+                models.append(name)
+    except Exception:
+        pass
+    return models
 
 def generate_script_and_seo(title, url):
     print("4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
-    model_name = get_text_model(client)
 
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
@@ -171,12 +183,19 @@ def generate_script_and_seo(title, url):
   "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ನಿಯಮಗಳು: 1) ಮೊದಲ 60 ಪದಗಳು ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಕಥೆಯ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ, ಪಾತ್ರವರ್ಗ, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್, ನಿರ್ದೇಶನ ಎಲ್ಲವನ್ನೂ ವಿಸ್ತಾರವಾಗಿ ವಿವರಿಸು. 3) ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳಿಲ್ಲದೆ ನಿರಂತರ ನಿರೂಪಣೆ ಇರಲಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 4) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 5) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
 }}
 """
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json")
-    )
-    return json.loads(response.text)
+    for model_name in get_available_text_models(client):
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}", flush=True)
+            return json.loads(response.text)
+        except Exception as e:
+            print(f"{model_name} ಸ್ಕಿಪ್ ಆಗಿದೆ: {e}", flush=True)
+            continue
+    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
 def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
     """ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್‌ನ ಅಕ್ಷರಗಳನ್ನು AI ಮೂಲಕ ತೆಗೆದುಹಾಕಿ, ಮೇಲೆ ಮತ್ತು ಕೆಳಗೆ ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕುತ್ತದೆ"""
