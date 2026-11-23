@@ -68,7 +68,6 @@ def search_latest_video(history_list):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for query in SEARCH_QUERIES:
             encoded_q = urllib.parse.quote(query)
-            # sp=EgIIAg%253D%253D -> ಕಳೆದ 24 ಗಂಟೆಗಳ (Today) ಫಿಲ್ಟರ್
             search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
             try:
                 info = ydl.extract_info(search_url, download=False)
@@ -182,6 +181,16 @@ def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
     )
     return header + audio_data
 
+def get_audio_duration(file_path: str) -> float:
+    try:
+        res = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file_path],
+            capture_output=True, text=True, check=True
+        )
+        return float(res.stdout.strip())
+    except Exception:
+        return 0.0
+
 def generate_algenib_voice(script_text: str):
     client = genai.Client(
         api_key=GEMINI_API_KEY,
@@ -196,49 +205,70 @@ def generate_algenib_voice(script_text: str):
             ],
         ),
     ]
-    generate_content_config = types.GenerateContentConfig(
-        temperature=0.45,
-        response_modalities=["audio"],
-        speech_config=types.SpeechConfig(
-            voice_config=types.VoiceConfig(
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                    voice_name=VOICE_NAME
+
+    # ಮೊದಲ 2 ಬಾರಿ 0.45 ಟೆಂಪರೇಚರ್, ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆದರೆ 3ನೇ ಬಾರಿ 0.65 ಟೆಂಪರೇಚರ್‌ನಲ್ಲಿ ಪ್ರಯತ್ನಿಸುತ್ತದೆ
+    temps = [0.45, 0.45, 0.65]
+    best_mp3 = None
+    best_duration = 0.0
+
+    for attempt, temp in enumerate(temps, start=1):
+        print(f"Algenib ವಾಯ್ಸ್ ಪ್ರಯತ್ನ {attempt}/3 (temperature={temp})...", flush=True)
+        generate_content_config = types.GenerateContentConfig(
+            temperature=temp,
+            response_modalities=["audio"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=VOICE_NAME
+                    )
                 )
-            )
-        ),
-    )
+            ),
+        )
 
-    try:
-        print("AI Studio v1beta ಸ್ಟ್ರೀಮಿಂಗ್ ಮೂಲಕ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ...", flush=True)
-        audio_data = bytearray()
-        mime_type = ""
-        for chunk in client.models.generate_content_stream(
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            if chunk.parts is None:
-                continue
-            if chunk.parts[0].inline_data and chunk.parts[0].inline_data.data:
-                inline_data = chunk.parts[0].inline_data
-                audio_data.extend(inline_data.data)
-                mime_type = inline_data.mime_type
+        try:
+            audio_data = bytearray()
+            mime_type = ""
+            for chunk in client.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=generate_content_config,
+            ):
+                if chunk.parts is None:
+                    continue
+                if chunk.parts[0].inline_data and chunk.parts[0].inline_data.data:
+                    inline_data = chunk.parts[0].inline_data
+                    audio_data.extend(inline_data.data)
+                    mime_type = inline_data.mime_type
 
-        if audio_data:
-            wav_bytes = convert_to_wav(bytes(audio_data), mime_type or "audio/L16;rate=24000")
-            wav_path = "voiceover.wav"
-            mp3_path = "voiceover.mp3"
-            with open(wav_path, "wb") as f:
-                f.write(wav_bytes)
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", wav_path, "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
-                check=True
-            )
-            print("Algenib ವಾಯ್ಸ್ MP3 ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
-            return mp3_path
-    except Exception as e:
-        print(f"Algenib TTS ಎರರ್: {e}", flush=True)
-    return None
+            if audio_data:
+                wav_bytes = convert_to_wav(bytes(audio_data), mime_type or "audio/L16;rate=24000")
+                wav_path = f"voiceover_{attempt}.wav"
+                mp3_path = f"voiceover_{attempt}.mp3"
+                with open(wav_path, "wb") as f:
+                    f.write(wav_bytes)
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", wav_path, "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
+                    check=True
+                )
+                dur = get_audio_duration(mp3_path)
+                print(f"ಪ್ರಯತ್ನ {attempt} ಆಡಿಯೋ ಉದ್ದ: {dur:.1f} ಸೆಕೆಂಡ್‌ಗಳು", flush=True)
+
+                if dur > best_duration:
+                    best_duration = dur
+                    best_mp3 = mp3_path
+
+                # 90 ಸೆಕೆಂಡ್‌ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಪೂರ್ತಿ ಆಡಿಯೋ ಬಂದಿದೆ ಅಂತ ಅರ್ಥ!
+                if dur >= 90.0:
+                    print("ಪೂರ್ತಿ ಆಡಿಯೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
+                    return mp3_path
+                else:
+                    print("ಆಡಿಯೋ ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆಗಿದೆ, ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+                    time.sleep(3)
+        except Exception as e:
+            print(f"Algenib TTS ಪ್ರಯತ್ನ {attempt} ಎರರ್: {e}", flush=True)
+            time.sleep(3)
+
+    return best_mp3
 
 def main():
     history = load_history()
