@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import time
 import struct
@@ -6,6 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
+from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
 
@@ -16,8 +18,6 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 HISTORY_FILE = "helper_history.json"
 VOICE_NAME = "Algenib"
 
-# ಹಂತ 1: ಮೊದಲು ಸಂಪೂರ್ಣವಾಗಿ ಕನ್ನಡ ಸಿನಿಮಾ (ಟ್ರೈಲರ್, OTT, ಬಾಕ್ಸ್ ಆಫೀಸ್) ಮಾತ್ರ ಹುಡುಕುತ್ತದೆ
-# ಹಂತ 2: ಕನ್ನಡದಲ್ಲಿ ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಏನೂ ಸಿಗದಿದ್ದರೆ ಮಾತ್ರ ಕೊನೆಯ 3 ಬೇರೆ ಭಾಷೆ/Pan-India ಕಡೆ ಹೋಗುತ್ತದೆ
 SEARCH_QUERIES = [
     # --- ಕನ್ನಡಕ್ಕೆ ಮೊದಲ ಆದ್ಯತೆ (Kannada Priority) ---
     "New Kannada Movie Official Trailer 2026",
@@ -45,27 +45,59 @@ REQUIRED_WORDS = [
     "ಟ್ರೈಲರ್", "ಟೀಸರ್", "ಬಾಕ್ಸ್ ಆಫೀಸ್", "ರಿಲೀಸ್"
 ]
 
-def load_history():
+def load_state():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE, "r") as f:
             data = json.load(f)
             if isinstance(data, dict):
-                return data.get("videos", [])
-            return data
-    return []
+                return data
+            return {"videos": data, "last_update_id": 0}
+    return {"videos": [], "last_update_id": 0}
 
-def save_history(videos):
+def save_state(state):
+    state["videos"] = state.get("videos", [])[-100:]
     with open(HISTORY_FILE, "w") as f:
-        json.dump(videos[-100:], f, indent=2)
+        json.dump(state, f, indent=2)
 
-def search_latest_video(history_list):
-    print("ಹೊಸ ಕನ್ನಡ ವಿಡಿಯೋ ಹುಡುಕಲಾಗುತ್ತಿದೆ...", flush=True)
+def check_telegram_topic_command(state):
+    """ಟೆಲಿಗ್ರಾಂ ಬಾಟ್‌ಗೆ /topic ಕಮಾಂಡ್ ಬಂದಿದೆಯಾ ಅಂತ ಪರಿಶೀಲಿಸುತ್ತದೆ"""
+    base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
+    last_id = state.get("last_update_id", 0)
+    try:
+        res = requests.get(f"{base_url}/getUpdates", params={"offset": last_id + 1, "timeout": 5}, timeout=10).json()
+        topic_query = None
+        for upd in res.get("result", []):
+            state["last_update_id"] = upd["update_id"]
+            msg = upd.get("message", {})
+            text = (msg.get("text") or "").strip()
+            if str(msg.get("chat", {}).get("id")) == str(CHAT_ID) and text.lower().startswith("/topic"):
+                topic_query = text[6:].strip()
+        return topic_query
+    except Exception as e:
+        print(f"Telegram update ಚೆಕ್ ಎರರ್: {e}", flush=True)
+        return None
+
+def search_video(history_list, custom_topic=None):
     ydl_opts = {
         "quiet": True,
         "extract_flat": True,
         "playlistend": 10
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        if custom_topic:
+            print(f"ನಿರ್ದಿಷ್ಟ ಟಾಪಿಕ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ: {custom_topic}", flush=True)
+            encoded_q = urllib.parse.quote(f"{custom_topic} Kannada 2026")
+            search_url = f"https://www.youtube.com/results?search_query={encoded_q}"
+            info = ydl.extract_info(search_url, download=False)
+            for entry in info.get("entries", []):
+                vid_id = entry.get("id")
+                title = entry.get("title") or custom_topic
+                duration = entry.get("duration") or 0
+                if vid_id and (duration == 0 or duration <= 900):
+                    return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
+            return None, None, None
+
+        print("ಹೊಸ ಕನ್ನಡ ವಿಡಿಯೋ ಹುಡುಕಲಾಗುತ್ತಿದೆ...", flush=True)
         for query in SEARCH_QUERIES:
             encoded_q = urllib.parse.quote(query)
             search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
@@ -103,49 +135,130 @@ def search_latest_video(history_list):
                 return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
     return None, None, None
 
-def generate_script(title, url):
-    print("4 ರಿಂದ 6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
+def get_text_model(client):
+    for m in client.models.list():
+        name = m.name.replace("models/", "")
+        if "gemini" in name and ("flash" in name or "pro" in name) and "tts" not in name and "image" not in name:
+            return name
+    return "gemini-2.5-flash"
+
+def generate_script_and_seo(title, url):
+    print("4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
+    model_name = get_text_model(client)
+
     prompt = f"""
-ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
-ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ, ವೀಕ್ಷಕರನ್ನು ಕೊನೆಯವರೆಗೂ ಹಿಡಿದಿಟ್ಟುಕೊಳ್ಳುವ (High-Retention), ಅತ್ಯಂತ ಪ್ರೊಫೆಷನಲ್ ಮತ್ತು ಸಿನಿಮ್ಯಾಟಿಕ್ ಶೈಲಿಯ **ಕಡ್ಡಾಯವಾಗಿ 4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಸುದೀರ್ಘ ಮತ್ತು ಆಳವಾದ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು. ಯಾವುದೇ ಕಾರಣಕ್ಕೂ ಸ್ಕ್ರಿಪ್ಟ್ ಚಿಕ್ಕದಾಗಿರಬಾರದು!
+ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
+ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ:
+1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ.
+2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು) ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** (ಮೇಲ್ಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕ್ಯೂರಿಯಾಸಿಟಿ ಟೆಕ್ಸ್ಟ್) ಹಾಗೂ **BOTTOM_TEXT** (ಕೆಳಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್) ಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
 - URL: {url}
 
-ಸ್ಕ್ರಿಪ್ಟ್ ರಚನೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ನಿಯಮಗಳು (ಪ್ರತಿ ವಿಭಾಗವನ್ನೂ ವಿಸ್ತಾರವಾಗಿ ಬರೆ):
-1. ಪವರ್‌ಫುಲ್ ಹುಕ್ (The Hook - ಸುಮಾರು 60 ಪದಗಳು): ಬೋರಿಂಗ್ ಆಗಿ 'ನಮಸ್ಕಾರ ಸ್ವಾಗತ' ಎಂದು ಶುರು ಮಾಡಬೇಡ! ನೇರವಾಗಿ ಈ ಸಿನಿಮಾದ ಅತ್ಯಂತ ರೋಚಕ ಅಂಶ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ಸಂಚಲನದ ಪಂಚ್ ಲೈನ್‌ನೊಂದಿಗೆ ಶುರುಮಾಡು. ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಎಂದು ಮುಂದುವರಿಸು.
-2. ಸಿನಿಮಾದ ಹಿನ್ನೆಲೆ ಮತ್ತು ಕಥೆಯ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 250 ಪದಗಳು):
-   - ಟ್ರೈಲರ್/ಟೀಸರ್ ಆಗಿದ್ದರೆ: ಸಿನಿಮಾದ ಜಾನರ್ (Genre), ಕಥೆಯ ತಿರುಳು, ಟ್ರೈಲರ್‌ನಲ್ಲಿ ತೋರಿಸಿರುವ ಪ್ರಮುಖ ತಿರುವುಗಳು ಮತ್ತು ಸಿನಿಮಾದ ಒಟ್ಟಾರೆ ಥೀಮ್ ಏನು ಎಂಬುದನ್ನು ವಿವರವಾಗಿ ಬಿಡಿಸಿ ಹೇಳು.
-   - OTT/ವಾರದ ರಿಲೀಸ್ ಆಗಿದ್ದರೆ: ಪ್ರತಿ ಸಿನಿಮಾದ ಕಥೆ, ಯಾವ OTT ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ (Prime Video, Netflix, Zee5, JioHotstar, Sun NXT), ರಿಲೀಸ್ ದಿನಾಂಕ ಮತ್ತು ವಿಶೇಷತೆಗಳನ್ನು ವಿಸ್ತಾರವಾಗಿ ವಿವರಿಸು.
-   - ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಆಗಿದ್ದರೆ: ಮೊದಲ ದಿನದಿಂದ ಇಲ್ಲಿಯವರೆಗಿನ ಕಲೆಕ್ಷನ್ ಏರಿಳಿತ, ಕರ್ನಾಟಕದ ಗಳಿಕೆ, ವರ್ಲ್ಡ್‌ವೈಡ್ ಕಲೆಕ್ಷನ್ ಮತ್ತು ಬಜೆಟ್ ರಿಕವರಿ ಲೆಕ್ಕಾಚಾರವನ್ನು ವಿವರಿಸು.
-3. ಪಾತ್ರವರ್ಗ ಮತ್ತು ಅಭಿನಯದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 180 ಪದಗಳು): ಹೀರೋ, ಹೀರೋಯಿನ್ ಮತ್ತು ಪೋಷಕ ಕಲಾವಿದರ ಲುಕ್, ಡೈಲಾಗ್ ಡೆಲಿವರಿ, ಸ್ಕ್ರೀನ್ ಪ್ರೆಸೆನ್ಸ್ ಮತ್ತು ಪಾತ್ರಗಳ ಮಹತ್ವವನ್ನು ಒಬ್ಬ ಸೀನಿಯರ್ ವಿಮರ್ಶಕನ ಶೈಲಿಯಲ್ಲಿ ವಿಶ್ಲೇಷಿಸು.
-4. ತಾಂತ್ರಿಕ ಅಂಶಗಳು ಮತ್ತು ನಿರ್ದೇಶನ (ಸುಮಾರು 180 ಪದಗಳು): ನಿರ್ದೇಶಕರ ಮೇಕಿಂಗ್ ಶೈಲಿ, BGM ಮತ್ತು ಮ್ಯೂಸಿಕ್, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography), ಕಲರ್ ಗ್ರೇಡಿಂಗ್, ಆಕ್ಷನ್ ಅಥವಾ ಎಡಿಟಿಂಗ್ ಹೇಗೆ ಮೂಡಿಬಂದಿದೆ ಎಂಬುದನ್ನು ತಾಂತ್ರಿಕವಾಗಿ ವಿವರಿಸು.
-5. ನಿರೀಕ್ಷೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 120 ಪದಗಳು - ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರಶ್ನೆ): ಸಿನಿಮಾದ ಪ್ಲಸ್-ಮೈನಸ್ ಅಂಶಗಳನ್ನು ಸಾರಾಂಶ ಮಾಡಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರೇಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
-
-ಪ್ರಮುಖ ತಾಂತ್ರಿಕ ನಿಯಮಗಳು:
-- ಸ್ಕ್ರಿಪ್ಟ್ ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳದೆ ನಿರಂತರವಾಗಿ ನಿರೂಪಿಸು.
-- AI Voice (Algenib) ಉಚ್ಚಾರಣೆಗೆ ಅನುಕೂಲವಾಗುವಂತೆ ಕನ್ನಡ ಪದಗಳನ್ನು ಶುದ್ಧ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Pan-India, Box office, BGM, Cinematography, Screenplay, Thriller, Action, OTT, Prime Video, Netflix, Zee5, JioHotstar, Blockbuster, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ.
-- ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (*, **, #), ಬ್ರಾಕೆಟ್ ಸೂಚನೆಗಳು ([Music], [Pause]), ಹೆಡಿಂಗ್‌ಗಳು ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಬಳಸಬೇಡ — ಕೇವಲ ಶುದ್ಧ ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳಿರಲಿ.
+ಈ ಕೆಳಗಿನ ನಿಖರ JSON ಫಾರ್ಮ್ಯಾಟ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉತ್ತರ ಕೊಡು:
+{{
+  "top_text": "ಥಂಬ್‌ನೇಲ್ ಮೇಲ್ಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಬಾಕ್ಸ್ ಆಫೀಸ್ ಧಮಾಕಾ!)",
+  "bottom_text": "ಥಂಬ್‌ನೇಲ್ ಕೆಳಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಟ್ರೈಲರ್ ರಿವ್ಯೂ & ಸೀಕ್ರೆಟ್!)",
+  "seo_titles": [
+    "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 1",
+    "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 2",
+    "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 3"
+  ],
+  "seo_description": "YouTube ವಿಡಿಯೋಗಾಗಿ 4-5 ಸಾಲುಗಳ SEO ಡಿಸ್ಕ್ರಿಪ್ಶನ್ ಮತ್ತು ಹ್ಯಾಶ್‌ಟ್ಯಾಗ್‌ಗಳು (#KannadaMovies #MKCineviewKannada ಇತ್ಯಾದಿ)",
+  "seo_tags": "ಕಾಮಾ (,) ಹಾಕಿ ಬೇರ್ಪಡಿಸಿದ 15 YouTube SEO ಟ್ಯಾಗ್‌ಗಳು",
+  "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ನಿಯಮಗಳು: 1) ಮೊದಲ 60 ಪದಗಳು ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಕಥೆಯ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ, ಪಾತ್ರವರ್ಗ, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್, ನಿರ್ದೇಶನ ಎಲ್ಲವನ್ನೂ ವಿಸ್ತಾರವಾಗಿ ವಿವರಿಸು. 3) ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳಿಲ್ಲದೆ ನಿರಂತರ ನಿರೂಪಣೆ ಇರಲಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 4) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 5) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
+}}
 """
-    available_models = []
-    for m in client.models.list():
-        name = m.name.replace("models/", "")
-        if "gemini" in name and ("flash" in name or "pro" in name) and "tts" not in name and "image" not in name:
-            available_models.append(name)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json")
+    )
+    return json.loads(response.text)
 
-    for model_name in available_models:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt
-            )
-            print(f"ಯಶಸ್ವಿಯಾಗಿ ಬಳಸಿದ ಮಾಡೆಲ್: {model_name}", flush=True)
-            return response.text
-        except Exception:
-            continue
-    raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
+def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
+    """ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್‌ನ ಅಕ್ಷರಗಳನ್ನು AI ಮೂಲಕ ತೆಗೆದುಹಾಕಿ, ಮೇಲೆ ಮತ್ತು ಕೆಳಗೆ ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕುತ್ತದೆ"""
+    print("ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಅಕ್ಷರಗಳನ್ನು ತೆಗೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
+    img_bytes = None
+    for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
+        r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
+        if r.status_code == 200 and len(r.content) > 5000:
+            img_bytes = r.content
+            break
+
+    if not img_bytes:
+        return None
+
+    with open("orig_thumb.jpg", "wb") as f:
+        f.write(img_bytes)
+
+    clean_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+    # ಹಂತ 1: Gemini Image Editing ಮೂಲಕ ಒರಿಜಿನಲ್ ಫೋಟೋದಲ್ಲಿರುವ ಎಲ್ಲಾ ಅಕ್ಷರ/ಲೋಗೋಗಳನ್ನು ತೆಗೆದುಹಾಕುವುದು
+    try:
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        edit_prompt = (
+            "Remove all text, titles, movie logos, watermarks, dates, and typography from this image completely. "
+            "Keep the actors, faces, background scene, colors, and lighting 100% identical and natural, "
+            "leaving a clean text-free cinematic image."
+        )
+        res = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                edit_prompt
+            ],
+            config=types.GenerateContentConfig(response_modalities=["IMAGE"])
+        )
+        for part in res.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.data:
+                clean_img = Image.open(io.BytesIO(part.inline_data.data)).convert("RGB")
+                print("ಒರಿಜಿನಲ್ ಫೋಟೋದ ಎಲ್ಲಾ ಅಕ್ಷರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ತೆಗೆಯಲಾಗಿದೆ!", flush=True)
+                break
+    except Exception as e:
+        print(f"AI ಇಮೇಜ್ ಕ್ಲೀನ್ ಎಚ್ಚರಿಕೆ (ಒರಿಜಿನಲ್ ಫೋಟೋ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
+
+    # 1280x720 HD YouTube Thumbnail ಅಳತೆಗೆ ಹೊಂದಿಸುವುದು
+    clean_img = clean_img.resize((1280, 720), Image.Resampling.LANCZOS)
+    draw = ImageDraw.Draw(clean_img, "RGBA")
+
+    # ಮೇಲ್ಭಾಗ ಮತ್ತು ಕೆಳಭಾಗದಲ್ಲಿ ಅಕ್ಷರಗಳು ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಲು ಡಾರ್ಕ್ ಸಿನಿಮ್ಯಾಟಿಕ್ ಗ್ರೇಡಿಯಂಟ್ ಬಾರ್
+    draw.rectangle([(0, 0), (1280, 115)], fill=(0, 0, 0, 195))
+    draw.rectangle([(0, 605), (1280, 720)], fill=(180, 0, 0, 215))
+
+    # ಕನ್ನಡ ಫಾಂಟ್ ಲೋಡ್ ಮಾಡುವುದು
+    font_paths = [
+        "/usr/share/fonts/truetype/noto/NotoSansKannada-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansKannada-Regular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansKannada-Bold.ttf"
+    ]
+    font_path = next((fp for fp in font_paths if os.path.exists(fp)), None)
+    font_top = ImageFont.truetype(font_path, 56) if font_path else ImageFont.load_default()
+    font_bottom = ImageFont.truetype(font_path, 58) if font_path else ImageFont.load_default()
+
+    def draw_centered_text(text_str, y_pos, font, fill_color):
+        bbox = draw.textbbox((0, 0), text_str, font=font)
+        text_w = bbox[2] - bbox[0]
+        x_pos = max(20, (1280 - text_w) // 2)
+        draw.text(
+            (x_pos, y_pos),
+            text_str,
+            font=font,
+            fill=fill_color,
+            stroke_width=4,
+            stroke_fill=(0, 0, 0, 255)
+        )
+
+    # Top Text (ಹಳದಿ ಬಣ್ಣದಲ್ಲಿ ಬೋಲ್ಡ್ ಆಗಿ) ಮತ್ತು Bottom Text (ಬಿಳಿ ಬಣ್ಣದಲ್ಲಿ ಬೋಲ್ಡ್ ಆಗಿ)
+    draw_centered_text(top_text, 22, font_top, (255, 230, 0, 255))
+    draw_centered_text(bottom_text, 625, font_bottom, (255, 255, 255, 255))
+
+    final_thumb_path = "readymade_thumbnail.jpg"
+    clean_img.save(final_thumb_path, "JPEG", quality=95)
+    print("ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (Top & Bottom Text) ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
+    return final_thumb_path
 
 def split_script_cleanly(text: str, target_parts: int = 3) -> list[str]:
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
@@ -265,7 +378,6 @@ def generate_single_chunk_wav(client, text_part: str, part_index: int) -> str | 
                     best_dur = dur
                     best_wav = wav_path
 
-                # ಪ್ರತಿ ಭಾಗ ಕನಿಷ್ಠ 45 ಸೆಕೆಂಡ್‌ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಕಟ್ ಆಗಿಲ್ಲ ಅಂತ ಅರ್ಥ
                 if dur >= 45.0:
                     return wav_path
                 else:
@@ -278,7 +390,6 @@ def generate_single_chunk_wav(client, text_part: str, part_index: int) -> str | 
     return best_wav
 
 def generate_algenib_voice(script_text: str):
-    # 4-6 ನಿಮಿಷದ ದೊಡ್ಡ ಸ್ಕ್ರಿಪ್ಟ್ ಕಟ್ ಆಗದಂತೆ 3 ಭಾಗಗಳಾಗಿ ಸ್ಟ್ರೀಮ್ ಮಾಡಿ ಒಂದೇ MP3 ಮಾಡುತ್ತದೆ
     client = genai.Client(
         api_key=GEMINI_API_KEY,
         http_options=types.HttpOptions(api_version="v1beta"),
@@ -303,37 +414,65 @@ def generate_algenib_voice(script_text: str):
             check=True
         )
         total_dur = get_audio_duration(mp3_path)
-        print(f"ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಸಿದ್ಧವಾಗಿದೆ! ಒಟ್ಟು ಉದ್ದ: {total_dur/60:.2f} ನಿಮಿಷಗಳು ({total_dur:.1f} ಸೆಕೆಂಡ್)", flush=True)
+        print(f"ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಸಿದ್ಧವಾಗಿದೆ! ಒಟ್ಟು ಉದ್ದ: {total_dur/60:.2f} ನಿಮಿಷಗಳು", flush=True)
         return mp3_path
     return None
 
 def main():
-    history = load_history()
-    url, vid_id, search_title = search_latest_video(history)
+    state = load_state()
+    history = state.get("videos", [])
+    custom_topic = check_telegram_topic_command(state)
     
+    url, vid_id, search_title = search_video(history, custom_topic=custom_topic)
     if not url:
-        print("ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ಯಾವುದೇ ಹೊಸ ಟ್ರೈಲರ್, OTT ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.", flush=True)
+        print("ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.", flush=True)
+        save_state(state)
         return
 
-    print(f"ಹೊಸ ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
+    print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
-    caption = f"🎬 <b>{search_title}</b>\n\n🔗 <b>YouTube Link:</b> {url}"
-    thumb_url = f"https://img.youtube.com/vi/{vid_id}/maxresdefault.jpg"
-    
-    res = requests.post(
-        f"{base_url}/sendPhoto",
-        data={"chat_id": CHAT_ID, "photo": thumb_url, "caption": caption, "parse_mode": "HTML"}
+
+    # 1. ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಟೆಕ್ಸ್ಟ್ ಜನರೇಟ್ ಮಾಡುವುದು
+    content_data = generate_script_and_seo(search_title, url)
+    top_txt = content_data.get("top_text", "ಹೊಸ ಕನ್ನಡ ಸಿನಿಮಾ!")
+    bottom_txt = content_data.get("bottom_text", "ಪೂರ್ತಿ ವಿವರ ಇಲ್ಲಿದೆ!")
+    script_text = content_data.get("script", "")
+
+    # 2. ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (ಅಕ್ಷರ ತೆಗೆದು Top & Bottom ಟೆಕ್ಸ್ಟ್ ಹಾಕುವುದು)
+    thumb_path = create_readymade_thumbnail(vid_id, top_txt, bottom_txt)
+    caption = (
+        f"🎬 <b>{search_title}</b>\n"
+        f"🔗 <b>YouTube Link:</b> {url}\n\n"
+        f"🖼️ <b>ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧವಾಗಿದೆ!</b>\n"
+        f"🔺 <b>Top:</b> {top_txt}\n"
+        f"🔻 <b>Bottom:</b> {bottom_txt}"
     )
-    if not res.ok:
-        requests.post(
-            f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"}
-        )
+    if thumb_path and os.path.exists(thumb_path):
+        with open(thumb_path, "rb") as tf:
+            requests.post(
+                f"{base_url}/sendPhoto",
+                data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
+                files={"photo": tf}
+            )
+    else:
+        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"})
 
     time.sleep(2)
-    script_text = generate_script(search_title, url)
-    
-    header = "📝 <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
+
+    # 3. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
+    titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
+    seo_msg = (
+        f"🚀 <b>YouTube SEO ಪ್ಯಾಕೇಜ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
+        f"📌 <b>Titles:</b>\n{titles_formatted}\n\n"
+        f"📝 <b>Description:</b>\n{content_data.get('seo_description', '')}\n\n"
+        f"🏷️ <b>Tags:</b>\n<code>{content_data.get('seo_tags', '')}</code>"
+    )
+    requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": seo_msg, "parse_mode": "HTML"})
+
+    time.sleep(2)
+
+    # 4. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
+    header = "🎙️ <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್:</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
         requests.post(
@@ -342,6 +481,7 @@ def main():
         )
         time.sleep(1)
 
+    # 5. Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
@@ -355,14 +495,11 @@ def main():
                 files={"audio": af}
             )
         print("Algenib ವಾಯ್ಸ್ MP3 ಫೈಲ್ Telegram ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ!", flush=True)
-    else:
-        requests.post(
-            f"{base_url}/sendMessage",
-            data={"chat_id": CHAT_ID, "text": "⚠️ ಸದ್ಯಕ್ಕೆ Algenib ಆಡಿಯೋ ಜನರೇಟ್ ಆಗಲಿಲ್ಲ, ಮೇಲಿನ ಸ್ಕ್ರಿಪ್ಟ್ ಅನ್ನು AI Studio ದಲ್ಲಿ ಬಳಸಿಕೋ."}
-        )
 
-    history.append(vid_id)
-    save_history(history)
+    if vid_id not in history:
+        history.append(vid_id)
+    state["videos"] = history
+    save_state(state)
     print("ಯಶಸ್ವಿಯಾಗಿ ಎಲ್ಲಾ ಕೆಲಸ ಪೂರ್ಣಗೊಂಡಿದೆ!", flush=True)
 
 if __name__ == "__main__":
