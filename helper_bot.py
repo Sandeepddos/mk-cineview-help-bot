@@ -104,27 +104,30 @@ def search_latest_video(history_list):
     return None, None, None
 
 def generate_script(title, url):
-    print("ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
+    print("4 ರಿಂದ 6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
-ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ, ವೀಕ್ಷಕರನ್ನು ಕೊನೆಯವರೆಗೂ ಹಿಡಿದಿಟ್ಟುಕೊಳ್ಳುವ (High-Retention), ಅತ್ಯಂತ ಪ್ರೊಫೆಷನಲ್ ಮತ್ತು ಸಿನಿಮ್ಯಾಟಿಕ್ ಶೈಲಿಯ 3 ರಿಂದ 4 ನಿಮಿಷ ಓದುವಷ್ಟು (ಸುಮಾರು 500 ರಿಂದ 600 ಪದಗಳ) ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು.
+ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ, ವೀಕ್ಷಕರನ್ನು ಕೊನೆಯವರೆಗೂ ಹಿಡಿದಿಟ್ಟುಕೊಳ್ಳುವ (High-Retention), ಅತ್ಯಂತ ಪ್ರೊಫೆಷನಲ್ ಮತ್ತು ಸಿನಿಮ್ಯಾಟಿಕ್ ಶೈಲಿಯ **ಕಡ್ಡಾಯವಾಗಿ 4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಸುದೀರ್ಘ ಮತ್ತು ಆಳವಾದ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆದುಕೊಡು. ಯಾವುದೇ ಕಾರಣಕ್ಕೂ ಸ್ಕ್ರಿಪ್ಟ್ ಚಿಕ್ಕದಾಗಿರಬಾರದು!
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
 - URL: {url}
 
-ಸ್ಕ್ರಿಪ್ಟ್ ರಚನೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ನಿಯಮಗಳು:
-1. ಪವರ್‌ಫುಲ್ ಹುಕ್ (The Hook - ಮೊದಲ 2-3 ಸಾಲುಗಳು): ಬೋರಿಂಗ್ ಆಗಿ 'ನಮಸ್ಕಾರ ಸ್ವಾಗತ' ಎಂದು ಶುರು ಮಾಡಬೇಡ! ನೇರವಾಗಿ ಈ ಸಿನಿಮಾದ ಅತ್ಯಂತ ರೋಚಕ ಅಂಶ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ಸಂಚಲನದ ಪಂಚ್ ಲೈನ್‌ನೊಂದಿಗೆ ಶುರುಮಾಡು. ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಎಂದು ಮುಂದುವರಿಸು.
-2. ನಿರಂತರ ಮತ್ತು ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (Deep Professional Breakdown):
-   - ಸ್ಕ್ರಿಪ್ಟ್ ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳದೆ, ನಿರಂತರವಾದ ನಿರೂಪಣೆಯೊಂದಿಗೆ ವಿಶ್ಲೇಷಿಸು.
-   - ಟ್ರೈಲರ್ ಅಥವಾ ಟೀಸರ್ ಆಗಿದ್ದರೆ: ಕಥೆಯ ತಿರುಳು, ನಟರ ಪರ್ಫಾರ್ಮೆನ್ಸ್, ನಿರ್ದೇಶಕರ ವಿಷನ್, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography), ಎಡಿಟಿಂಗ್ ಮತ್ತು ಸಿನಿಮಾದ ಪ್ಲಸ್-ಮೈನಸ್ ಅಂಶಗಳನ್ನು ಒಬ್ಬ ಪ್ರೊಫೆಷನಲ್ ವಿಮರ್ಶಕನ ಶೈಲಿಯಲ್ಲಿ ವಿಶ್ಲೇಷಿಸು.
-   - OTT ಅಥವಾ ವಾರದ ರಿಲೀಸ್ ಅಪ್‌ಡೇಟ್ ಆಗಿದ್ದರೆ: ಯಾವ ಸಿನಿಮಾ, ಯಾವ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ (Prime Video, Netflix, Zee5, JioHotstar, Sun NXT), ಯಾವ ದಿನಾಂಕ, ಅದರ ಜಾನರ್ (Genre) ಮತ್ತು ವೀಕ್ಷಕರು ಯಾಕೆ ಈ ಸಿನಿಮಾವನ್ನು ಮಿಸ್ ಮಾಡಬಾರದು ಎಂಬುದನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ವಿವರಿಸು.
-   - ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಆಗಿದ್ದರೆ: ಕರ್ನಾಟಕದ ಕಲೆಕ್ಷನ್, ವರ್ಲ್ಡ್‌ವೈಡ್ ಗಳಿಕೆ, ಬಜೆಟ್ ಮತ್ತು ರಿಕವರಿ ಲೆಕ್ಕಾಚಾರವನ್ನು ರೋಚಕವಾಗಿ ಪ್ರಸ್ತುತಪಡಿಸು.
-3. ನೈಸರ್ಗಿಕ ನಿರೂಪಣೆ (Storytelling Flow): ಒಂದಕ್ಕೊಂದು ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳು ಸುಗಮವಾಗಿ ಜೋಡಣೆಯಾಗಿರಲಿ. ಓದುವಾಗ ಪಂಚ್ ಮತ್ತು ಎನರ್ಜಿ ಇರುವಂತೆ ಚಿಕ್ಕ ಮತ್ತು ಪರಿಣಾಮಕಾರಿ ವಾಕ್ಯಗಳನ್ನು ಬಳಸು.
-4. AI Voice (Algenib) ಉಚ್ಚಾರಣೆಗೆ ಅನುಕೂಲ: ಕನ್ನಡ ಪದಗಳನ್ನು ಶುದ್ಧ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (ಉದಾಹರಣೆಗೆ: Trailer, Teaser, Pan-India, Box office, BGM, Cinematography, Screenplay, Thriller, Action, OTT, Prime Video, Netflix, Zee5, JioHotstar, Blockbuster, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 'MK CINEVIEW ಕನ್ನಡ' ಎಂಬುದನ್ನು ಇಂಗ್ಲಿಷ್ ಮತ್ತು ಕನ್ನಡದಲ್ಲೇ ಸ್ಪಷ್ಟವಾಗಿ ಬರೆ.
-5. ಕ್ಲೀನ್ ಫಾರ್ಮ್ಯಾಟ್: ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (*, **, #), ಬ್ರಾಕೆಟ್ ಸೂಚನೆಗಳು ([Music], [Pause]) ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಬಳಸಬೇಡ — ಏಕೆಂದರೆ ಇದನ್ನು ನೇರವಾಗಿ AI Voice ಓದುತ್ತದೆ.
-6. ಪ್ರೊಫೆಷನಲ್ ಕ್ಲೋಸಿಂಗ್ (ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ): ಸ್ಕ್ರಿಪ್ಟ್‌ನ ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರೇಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
+ಸ್ಕ್ರಿಪ್ಟ್ ರಚನೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ನಿಯಮಗಳು (ಪ್ರತಿ ವಿಭಾಗವನ್ನೂ ವಿಸ್ತಾರವಾಗಿ ಬರೆ):
+1. ಪವರ್‌ಫುಲ್ ಹುಕ್ (The Hook - ಸುಮಾರು 60 ಪದಗಳು): ಬೋರಿಂಗ್ ಆಗಿ 'ನಮಸ್ಕಾರ ಸ್ವಾಗತ' ಎಂದು ಶುರು ಮಾಡಬೇಡ! ನೇರವಾಗಿ ಈ ಸಿನಿಮಾದ ಅತ್ಯಂತ ರೋಚಕ ಅಂಶ ಅಥವಾ ಬಾಕ್ಸ್ ಆಫೀಸ್ ಸಂಚಲನದ ಪಂಚ್ ಲೈನ್‌ನೊಂದಿಗೆ ಶುರುಮಾಡು. ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಎಂದು ಮುಂದುವರಿಸು.
+2. ಸಿನಿಮಾದ ಹಿನ್ನೆಲೆ ಮತ್ತು ಕಥೆಯ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 250 ಪದಗಳು):
+   - ಟ್ರೈಲರ್/ಟೀಸರ್ ಆಗಿದ್ದರೆ: ಸಿನಿಮಾದ ಜಾನರ್ (Genre), ಕಥೆಯ ತಿರುಳು, ಟ್ರೈಲರ್‌ನಲ್ಲಿ ತೋರಿಸಿರುವ ಪ್ರಮುಖ ತಿರುವುಗಳು ಮತ್ತು ಸಿನಿಮಾದ ಒಟ್ಟಾರೆ ಥೀಮ್ ಏನು ಎಂಬುದನ್ನು ವಿವರವಾಗಿ ಬಿಡಿಸಿ ಹೇಳು.
+   - OTT/ವಾರದ ರಿಲೀಸ್ ಆಗಿದ್ದರೆ: ಪ್ರತಿ ಸಿನಿಮಾದ ಕಥೆ, ಯಾವ OTT ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ (Prime Video, Netflix, Zee5, JioHotstar, Sun NXT), ರಿಲೀಸ್ ದಿನಾಂಕ ಮತ್ತು ವಿಶೇಷತೆಗಳನ್ನು ವಿಸ್ತಾರವಾಗಿ ವಿವರಿಸು.
+   - ಬಾಕ್ಸ್ ಆಫೀಸ್ ಕಲೆಕ್ಷನ್ ಆಗಿದ್ದರೆ: ಮೊದಲ ದಿನದಿಂದ ಇಲ್ಲಿಯವರೆಗಿನ ಕಲೆಕ್ಷನ್ ಏರಿಳಿತ, ಕರ್ನಾಟಕದ ಗಳಿಕೆ, ವರ್ಲ್ಡ್‌ವೈಡ್ ಕಲೆಕ್ಷನ್ ಮತ್ತು ಬಜೆಟ್ ರಿಕವರಿ ಲೆಕ್ಕಾಚಾರವನ್ನು ವಿವರಿಸು.
+3. ಪಾತ್ರವರ್ಗ ಮತ್ತು ಅಭಿನಯದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 180 ಪದಗಳು): ಹೀರೋ, ಹೀರೋಯಿನ್ ಮತ್ತು ಪೋಷಕ ಕಲಾವಿದರ ಲುಕ್, ಡೈಲಾಗ್ ಡೆಲಿವರಿ, ಸ್ಕ್ರೀನ್ ಪ್ರೆಸೆನ್ಸ್ ಮತ್ತು ಪಾತ್ರಗಳ ಮಹತ್ವವನ್ನು ಒಬ್ಬ ಸೀನಿಯರ್ ವಿಮರ್ಶಕನ ಶೈಲಿಯಲ್ಲಿ ವಿಶ್ಲೇಷಿಸು.
+4. ತಾಂತ್ರಿಕ ಅಂಶಗಳು ಮತ್ತು ನಿರ್ದೇಶನ (ಸುಮಾರು 180 ಪದಗಳು): ನಿರ್ದೇಶಕರ ಮೇಕಿಂಗ್ ಶೈಲಿ, BGM ಮತ್ತು ಮ್ಯೂಸಿಕ್, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography), ಕಲರ್ ಗ್ರೇಡಿಂಗ್, ಆಕ್ಷನ್ ಅಥವಾ ಎಡಿಟಿಂಗ್ ಹೇಗೆ ಮೂಡಿಬಂದಿದೆ ಎಂಬುದನ್ನು ತಾಂತ್ರಿಕವಾಗಿ ವಿವರಿಸು.
+5. ನಿರೀಕ್ಷೆ ಮತ್ತು ಪ್ರೊಫೆಷನಲ್ ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 120 ಪದಗಳು - ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರಶ್ನೆ): ಸಿನಿಮಾದ ಪ್ಲಸ್-ಮೈನಸ್ ಅಂಶಗಳನ್ನು ಸಾರಾಂಶ ಮಾಡಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ಪ್ರೇಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು 'MK CINEVIEW ಕನ್ನಡ' ಚಾನೆಲ್‌ಗೆ Subscribe ಮಾಡಲು ಕೇಳುವ Call to Action ಇರಲಿ.
+
+ಪ್ರಮುಖ ತಾಂತ್ರಿಕ ನಿಯಮಗಳು:
+- ಸ್ಕ್ರಿಪ್ಟ್ ಮಧ್ಯದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳದೆ ನಿರಂತರವಾಗಿ ನಿರೂಪಿಸು.
+- AI Voice (Algenib) ಉಚ್ಚಾರಣೆಗೆ ಅನುಕೂಲವಾಗುವಂತೆ ಕನ್ನಡ ಪದಗಳನ್ನು ಶುದ್ಧ ಕನ್ನಡ ಲಿಪಿಯಲ್ಲಿ ಮತ್ತು ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Pan-India, Box office, BGM, Cinematography, Screenplay, Thriller, Action, OTT, Prime Video, Netflix, Zee5, JioHotstar, Blockbuster, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ.
+- ಸ್ಕ್ರಿಪ್ಟ್ ಒಳಗೆ ಯಾವುದೇ ಸ್ಟಾರ್ ಚಿಹ್ನೆಗಳು (*, **, #), ಬ್ರಾಕೆಟ್ ಸೂಚನೆಗಳು ([Music], [Pause]), ಹೆಡಿಂಗ್‌ಗಳು ಅಥವಾ ಎಮೋಜಿಗಳನ್ನು ಬಳಸಬೇಡ — ಕೇವಲ ಶುದ್ಧ ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳಿರಲಿ.
 """
     available_models = []
     for m in client.models.list():
@@ -143,6 +146,27 @@ def generate_script(title, url):
         except Exception:
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
+
+def split_script_cleanly(text: str, target_parts: int = 3) -> list[str]:
+    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
+    if len(paragraphs) <= target_parts:
+        return paragraphs
+
+    total_len = sum(len(p) for p in paragraphs)
+    chunk_target = total_len // target_parts
+    chunks = []
+    current = ""
+
+    for p in paragraphs:
+        if len(current) + len(p) <= chunk_target + 250 or len(chunks) >= target_parts - 1:
+            current += ("\n\n" if current else "") + p
+        else:
+            if current:
+                chunks.append(current)
+            current = p
+    if current:
+        chunks.append(current)
+    return chunks
 
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
@@ -191,47 +215,36 @@ def get_audio_duration(file_path: str) -> float:
     except Exception:
         return 0.0
 
-def generate_algenib_voice(script_text: str):
-    client = genai.Client(
-        api_key=GEMINI_API_KEY,
-        http_options=types.HttpOptions(api_version="v1beta"),
-    )
+def generate_single_chunk_wav(client, text_part: str, part_index: int) -> str | None:
     model = "gemini-2.5-flash-preview-tts"
     contents = [
         types.Content(
             role="user",
-            parts=[
-                types.Part.from_text(text=f"## Transcript:\n{script_text}"),
-            ],
+            parts=[types.Part.from_text(text=f"## Transcript:\n{text_part}")],
         ),
     ]
-
-    # ಮೊದಲ 2 ಬಾರಿ 0.45 ಟೆಂಪರೇಚರ್, ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆದರೆ 3ನೇ ಬಾರಿ 0.65 ಟೆಂಪರೇಚರ್‌ನಲ್ಲಿ ಪ್ರಯತ್ನಿಸುತ್ತದೆ
-    temps = [0.45, 0.45, 0.65]
-    best_mp3 = None
-    best_duration = 0.0
+    temps = [0.45, 0.55, 0.7]
+    best_wav = None
+    best_dur = 0.0
 
     for attempt, temp in enumerate(temps, start=1):
-        print(f"Algenib ವಾಯ್ಸ್ ಪ್ರಯತ್ನ {attempt}/3 (temperature={temp})...", flush=True)
-        generate_content_config = types.GenerateContentConfig(
+        print(f"ಭಾಗ {part_index+1} - ಪ್ರಯತ್ನ {attempt}/3 (temperature={temp})...", flush=True)
+        config = types.GenerateContentConfig(
             temperature=temp,
             response_modalities=["audio"],
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name=VOICE_NAME
-                    )
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=VOICE_NAME)
                 )
             ),
         )
-
         try:
             audio_data = bytearray()
             mime_type = ""
             for chunk in client.models.generate_content_stream(
                 model=model,
                 contents=contents,
-                config=generate_content_config,
+                config=config,
             ):
                 if chunk.parts is None:
                     continue
@@ -242,33 +255,57 @@ def generate_algenib_voice(script_text: str):
 
             if audio_data:
                 wav_bytes = convert_to_wav(bytes(audio_data), mime_type or "audio/L16;rate=24000")
-                wav_path = f"voiceover_{attempt}.wav"
-                mp3_path = f"voiceover_{attempt}.mp3"
+                wav_path = f"part_{part_index}_try_{attempt}.wav"
                 with open(wav_path, "wb") as f:
                     f.write(wav_bytes)
-                subprocess.run(
-                    ["ffmpeg", "-y", "-i", wav_path, "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
-                    check=True
-                )
-                dur = get_audio_duration(mp3_path)
-                print(f"ಪ್ರಯತ್ನ {attempt} ಆಡಿಯೋ ಉದ್ದ: {dur:.1f} ಸೆಕೆಂಡ್‌ಗಳು", flush=True)
+                dur = get_audio_duration(wav_path)
+                print(f"ಭಾಗ {part_index+1} (ಪ್ರಯತ್ನ {attempt}) ಉದ್ದ: {dur:.1f} ಸೆಕೆಂಡ್‌ಗಳು", flush=True)
 
-                if dur > best_duration:
-                    best_duration = dur
-                    best_mp3 = mp3_path
+                if dur > best_dur:
+                    best_dur = dur
+                    best_wav = wav_path
 
-                # 90 ಸೆಕೆಂಡ್‌ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಪೂರ್ತಿ ಆಡಿಯೋ ಬಂದಿದೆ ಅಂತ ಅರ್ಥ!
-                if dur >= 90.0:
-                    print("ಪೂರ್ತಿ ಆಡಿಯೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
-                    return mp3_path
+                # ಪ್ರತಿ ಭಾಗ ಕನಿಷ್ಠ 45 ಸೆಕೆಂಡ್‌ಗಿಂತ ಹೆಚ್ಚಿದ್ದರೆ ಕಟ್ ಆಗಿಲ್ಲ ಅಂತ ಅರ್ಥ
+                if dur >= 45.0:
+                    return wav_path
                 else:
-                    print("ಆಡಿಯೋ ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆಗಿದೆ, ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-                    time.sleep(3)
+                    print(f"ಭಾಗ {part_index+1} ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆಗಿದೆ, ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+                    time.sleep(2)
         except Exception as e:
-            print(f"Algenib TTS ಪ್ರಯತ್ನ {attempt} ಎರರ್: {e}", flush=True)
-            time.sleep(3)
+            print(f"ಭಾಗ {part_index+1} ಪ್ರಯತ್ನ {attempt} ಎರರ್: {e}", flush=True)
+            time.sleep(2)
 
-    return best_mp3
+    return best_wav
+
+def generate_algenib_voice(script_text: str):
+    # 4-6 ನಿಮಿಷದ ದೊಡ್ಡ ಸ್ಕ್ರಿಪ್ಟ್ ಕಟ್ ಆಗದಂತೆ 3 ಭಾಗಗಳಾಗಿ ಸ್ಟ್ರೀಮ್ ಮಾಡಿ ಒಂದೇ MP3 ಮಾಡುತ್ತದೆ
+    client = genai.Client(
+        api_key=GEMINI_API_KEY,
+        http_options=types.HttpOptions(api_version="v1beta"),
+    )
+    parts = split_script_cleanly(script_text, target_parts=3)
+    print(f"4-6 ನಿಮಿಷದ ಆಡಿಯೋ ಕಟ್ ಆಗದಂತೆ {len(parts)} ಭಾಗಗಳಲ್ಲಿ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+
+    final_wavs = []
+    for idx, part_text in enumerate(parts):
+        wav_file = generate_single_chunk_wav(client, part_text, idx)
+        if wav_file and os.path.exists(wav_file):
+            final_wavs.append(wav_file)
+        time.sleep(2)
+
+    if final_wavs:
+        with open("concat_list.txt", "w") as lf:
+            for wf in final_wavs:
+                lf.write(f"file '{wf}'\n")
+        mp3_path = "voiceover.mp3"
+        subprocess.run(
+            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat_list.txt", "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
+            check=True
+        )
+        total_dur = get_audio_duration(mp3_path)
+        print(f"ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಸಿದ್ಧವಾಗಿದೆ! ಒಟ್ಟು ಉದ್ದ: {total_dur/60:.2f} ನಿಮಿಷಗಳು ({total_dur:.1f} ಸೆಕೆಂಡ್)", flush=True)
+        return mp3_path
+    return None
 
 def main():
     history = load_history()
@@ -296,7 +333,7 @@ def main():
     time.sleep(2)
     script_text = generate_script(search_title, url)
     
-    header = "📝 <b>ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
+    header = "📝 <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
         requests.post(
