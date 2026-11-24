@@ -1,4 +1,5 @@
+google-genai
 requests
 yt-dlp
-google-genai
+pytubefix
 Pillow
