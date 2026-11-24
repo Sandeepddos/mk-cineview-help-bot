@@ -177,7 +177,7 @@ def generate_script_and_seo(title, url):
   ],
   "seo_description": "YouTube ವಿಡಿಯೋಗಾಗಿ 4-5 ಸಾಲುಗಳ SEO ಡಿಸ್ಕ್ರಿಪ್ಶನ್ ಮತ್ತು ಹ್ಯಾಶ್‌ಟ್ಯಾಗ್‌ಗಳು (#KannadaMovies #MKCineviewKannada ಇತ್ಯಾದಿ)",
   "seo_tags": "ಕಾಮಾ (,) ಹಾಕಿ ಬೇರ್ಪಡಿಸಿದ 15 YouTube SEO ಟ್ಯಾಗ್‌ಗಳು",
-  "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಕನಿಷ್ಠ 8 ರಿಂದ 10 ಚಿಕ್ಕ ಪ್ಯಾರಾಗ್ರಾಫ್‌ಗಳಾಗಿ ವಿಂಗಡಿಸಿ ಬರೆ. ಸ್ಕ್ರಿಪ್ಟ್ ವಿಭಾಗಗಳು: 1) ಮೊದಲ 60 ಪದಗಳು ಸಿನಿಮಾ ಮತ್ತು ಟ್ರೈಲರ್ ಕುರಿತ ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ (ಸುಮಾರು 250 ಪದಗಳು): ಸಿನಿಮಾ ಜಾನರ್, ನಿರ್ದೇಶಕರು, ನಿರ್ಮಾಪಕರು, ಸಂಗೀತ ನಿರ್ದೇಶಕರು, ತಾರಾಗಣ, ಕಥಾಹಂದರ ಮತ್ತು ಶೂಟಿಂಗ್ ವಿಶೇಷತೆ. 3) ಟ್ರೈಲರ್ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 300 ಪದಗಳು): ಟ್ರೈಲರ್ ಪ್ರಮುಖ ದೃಶ್ಯಗಳು, ಹೀರೋ ಎಂಟ್ರಿ, ಆಕ್ಷನ್/ಡ್ರಾಮಾ, ಡೈಲಾಗ್‌ಗಳು, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ ಮತ್ತು ಸೀಕ್ರೆಟ್ ಅಂಶಗಳು. 4) ಸಿನಿಮಾ ರಿಲೀಸ್ ಡೇಟ್, OTT/ಥಿಯೇಟರ್ ನಿರೀಕ್ಷೆ ಮತ್ತು ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 150 ಪದಗಳು): ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ವೀಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 5) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Movie, Release, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 6) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
+  "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಸ್ಕ್ರಿಪ್ಟ್ ವಿಭಾಗಗಳು ಈ ರೀತಿ ಇರಲಿ: 1) ಮೊದಲ 60 ಪದಗಳು ಸಿನಿಮಾ ಮತ್ತು ಟ್ರೈಲರ್ ಕುರಿತ ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ (ಸುಮಾರು 250 ಪದಗಳು): ಸಿನಿಮಾ ಯಾವ ಜಾನರ್ (Genre), ನಿರ್ದೇಶಕರು ಮತ್ತು ನಿರ್ಮಾಣ ಸಂಸ್ಥೆ ಯಾರು, ಸಂಗೀತ ನಿರ್ದೇಶಕರು, ಪೂರ್ತಿ ತಾರಾಗಣ (Cast), ಸಿನಿಮಾದ ಕಥಾಹಂದರ ಮತ್ತು ಶೂಟಿಂಗ್ ವಿಶೇಷತೆಗಳನ್ನು ವಿವರಿಸು. 3) ಟ್ರೈಲರ್ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 300 ಪದಗಳು): ಟ್ರೈಲರ್ ಆರಂಭದಿಂದ ಅಂತ್ಯದವರೆಗಿನ ಪ್ರಮುಖ ದೃಶ್ಯಗಳು, ಹೀರೋ ಎಂಟ್ರಿ, ಆಕ್ಷನ್/ಡ್ರಾಮಾ, ಡೈಲಾಗ್‌ಗಳು, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography) ಮತ್ತು ಟ್ರೈಲರ್‌ನಲ್ಲಿ ಅಡಗಿರುವ ಸೀಕ್ರೆಟ್ ಅಂಶಗಳನ್ನು ವಿಶ್ಲೇಷಿಸು. 4) ಸಿನಿಮಾ ರಿಲೀಸ್ ಡೇಟ್, OTT/ಥಿಯೇಟರ್ ನಿರೀಕ್ಷೆ ಮತ್ತು ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 150 ಪದಗಳು): ಸಿನಿಮಾ ಯಾವಾಗ ರಿಲೀಸ್ ಆಗುತ್ತಿದೆ, ಪ್ರೇಕ್ಷಕರಲ್ಲಿರುವ ಕ್ರೇಜ್ ಹೇಗಿದೆ ಎಂಬುದನ್ನು ಹೇಳಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ವೀಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 5) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Movie, Release, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 6) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
 }}
 """
     for model_name in get_available_text_models(client):
@@ -270,19 +270,13 @@ def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
     print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
 
-def extract_16_hd_frames(youtube_url: str, vid_id: str, movie_title: str, target_count: int = 16) -> list[str]:
-    """ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ 16 HD ಫೋಟೋಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ (YouTube ಬ್ಲಾಕ್ ಆದರೆ YouTube HQ ಫ್ರೇಮ್‌ಗಳು + AI ಸಿನಿಮ್ಯಾಟಿಕ್ ದೃಶ್ಯಗಳನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತದೆ)"""
-    print("ಟ್ರೈಲರ್ ವಿಡಿಯೋದಿಂದ 16 HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+def extract_4_hd_frames(youtube_url: str, vid_id: str) -> list[str]:
+    """ಯಾವುದೇ Gemini API ಕೋಟಾ ಖರ್ಚು ಮಾಡದೆ 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
+    print("ವಿಡಿಯೋದಿಂದ 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ತೆಗೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
     video_file = "temp_trailer.mp4"
     duration = 0
 
-    # ವಿಧಾನ 1: tv_embedded / mweb / ios ಕ್ಲೈಂಟ್ ಮೂಲಕ MP4 ಡೌನ್‌ಲೋಡ್
-    client_orders = [
-        ["tv_embedded", "mweb"],
-        ["ios", "android"],
-        ["web_creator", "mweb"]
-    ]
-    for clients in client_orders:
+    for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
         if os.path.exists(video_file):
             os.remove(video_file)
         dl_opts = {
@@ -297,17 +291,16 @@ def extract_16_hd_frames(youtube_url: str, vid_id: str, movie_title: str, target
                 info = ydl.extract_info(youtube_url, download=True)
                 duration = info.get("duration") or 120
             if os.path.exists(video_file) and os.path.getsize(video_file) > 100000:
-                print(f"ವಿಡಿಯೋ ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ (client: {clients})!", flush=True)
                 break
-        except Exception as e:
-            print(f"ಡೌನ್‌ಲೋಡ್ ಪ್ರಯತ್ನ ({clients}) ವಿಫಲ: {e}", flush=True)
+        except Exception:
+            continue
 
     final_frames = []
     if os.path.exists(video_file) and os.path.getsize(video_file) > 100000:
-        start_sec = max(3.0, duration * 0.08)
-        end_sec = max(start_sec + 10.0, duration * 0.88)
+        start_sec = max(4.0, duration * 0.12)
+        end_sec = max(start_sec + 8.0, duration * 0.85)
         usable_dur = end_sec - start_sec
-        sample_count = 32
+        sample_count = 12
         step = usable_dur / sample_count
 
         scored_frames = []
@@ -337,17 +330,18 @@ def extract_16_hd_frames(youtube_url: str, vid_id: str, movie_title: str, target
 
         if scored_frames:
             scored_frames.sort(key=lambda x: x[0], reverse=True)
-            top_frames = sorted(scored_frames[:target_count], key=lambda x: x[1])
-            for idx, (_, _, path) in enumerate(top_frames, start=1):
+            top_4 = sorted(scored_frames[:4], key=lambda x: x[1])
+            for idx, (_, _, path) in enumerate(top_4, start=1):
                 clean_name = f"hd_scene_{idx:02d}.jpg"
                 os.replace(path, clean_name)
                 final_frames.append(clean_name)
             print(f"ವಿಡಿಯೋದಿಂದ {len(final_frames)} HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
             return final_frames
 
-    # ವಿಧಾನ 2 (ಬ್ಯಾಕಪ್): YouTube IP ಬ್ಲಾಕ್ ಆಗಿದ್ದರೆ, YouTube HQ ಫ್ರೇಮ್‌ಗಳು + ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್ ಆಧರಿಸಿ Gemini AI ಮೂಲಕ ವಿಭಿನ್ನ ಸಿನಿಮ್ಯಾಟಿಕ್ ದೃಶ್ಯಗಳ 16 HD ಫೋಟೋಗಳನ್ನು ಸಿದ್ಧಪಡಿಸುವುದು
-    print("YouTube IP ಬ್ಲಾಕ್ ಇರುವುದರಿಂದ YouTube ಫ್ರೇಮ್‌ಗಳು + AI ಸಿನಿಮ್ಯಾಟಿಕ್ ದೃಶ್ಯಗಳ 16 HD ಫೋಟೋ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-    for yt_thumb in ["hq1.jpg", "hq2.jpg", "hq3.jpg", "sddefault.jpg"]:
+    # YouTube ಡೌನ್‌ಲೋಡ್ ಬ್ಲಾಕ್ ಆಗಿದ್ದರೆ YouTube ನ 4 ಒರಿಜಿನಲ್ ಫ್ರೇಮ್‌ಗಳನ್ನು ನೀಡುವುದು (API ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
+    for yt_thumb in ["maxresdefault.jpg", "hq1.jpg", "hq2.jpg", "hq3.jpg"]:
+        if len(final_frames) >= 4:
+            break
         try:
             r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{yt_thumb}", timeout=10)
             if r.status_code == 200 and len(r.content) > 4000:
@@ -358,73 +352,8 @@ def extract_16_hd_frames(youtube_url: str, vid_id: str, movie_title: str, target
         except Exception:
             pass
 
-    if os.path.exists("clean_photo.jpg"):
-        with open("clean_photo.jpg", "rb") as cf:
-            base_bytes = cf.read()
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        angles = [
-            "dramatic wide angle action scene with the same main character in intense cinematic lighting, no text",
-            "close-up emotional portrait of the main hero in moody film lighting, 16:9 widescreen, no text",
-            "high-octane chase or fight sequence in a cinematic location with the same character, no text",
-            "intense confrontation scene at night with dramatic rain and neon/fire reflections, no text",
-            "hero walking in slow motion with dramatic smoke and backlight, South Indian cinema style, no text",
-            "mysterious suspense scene in an old heritage building or forest with cinematic shadows, no text",
-            "powerful mass elevation shot of the protagonist looking intensely at camera, 16:9 HD, no text",
-            "dramatic aerial wide shot of the movie setting and action chaos, blockbuster cinematography, no text",
-            "hero standing before a roaring crowd or fiery backdrop, epic movie still, no text",
-            "tense thriller interrogation or secret meeting scene in dim cinematic lighting, no text",
-            "dynamic side-angle vehicle or action stunt frame from the same movie universe, no text",
-            "emotional climax still with dramatic golden hour sunlight and lens flare, no text"
-        ]
-        for prompt_angle in angles:
-            if len(final_frames) >= target_count:
-                break
-            try:
-                res = client.models.generate_content(
-                    model="gemini-2.5-flash-image",
-                    contents=[
-                        types.Part.from_bytes(data=base_bytes, mime_type="image/jpeg"),
-                        f"Create a new 16:9 movie still frame from '{movie_title}' matching this character and visual tone: {prompt_angle}"
-                    ],
-                    config=types.GenerateContentConfig(response_modalities=["IMAGE"])
-                )
-                for part in res.candidates[0].content.parts:
-                    if part.inline_data and part.inline_data.data:
-                        gen_img = Image.open(io.BytesIO(part.inline_data.data)).convert("RGB").resize((1280, 720), Image.Resampling.LANCZOS)
-                        fname = f"hd_scene_{len(final_frames)+1:02d}.jpg"
-                        gen_img.save(fname, "JPEG", quality=95)
-                        final_frames.append(fname)
-                        break
-                time.sleep(1)
-            except Exception as e:
-                print(f"AI ಫ್ರೇಮ್ ಜನರೇಷನ್ ಸ್ಕಿಪ್: {e}", flush=True)
-
     print(f"ಒಟ್ಟು {len(final_frames)} HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return final_frames
-
-def split_script_into_small_chunks(text: str, max_words_per_chunk: int = 135) -> list[str]:
-    """ವಾಯ್ಸ್ ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆಗದಂತೆ ಸ್ಕ್ರಿಪ್ಟ್ ಅನ್ನು 120-140 ಪದಗಳ 6-7 ಚಿಕ್ಕ ಭಾಗಗಳಾಗಿ ಕತ್ತರಿಸುತ್ತದೆ"""
-    import re
-    sentences = re.split(r'(?<=[.!?।])\s+|\n+', text.strip())
-    sentences = [s.strip() for s in sentences if s.strip()]
-
-    chunks = []
-    current_chunk = []
-    current_words = 0
-
-    for sent in sentences:
-        w_count = len(sent.split())
-        if current_words + w_count > max_words_per_chunk and current_chunk:
-            chunks.append(" ".join(current_chunk))
-            current_chunk = [sent]
-            current_words = w_count
-        else:
-            current_chunk.append(sent)
-            current_words += w_count
-
-    if current_chunk:
-        chunks.append(" ".join(current_chunk))
-    return chunks
 
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
@@ -473,24 +402,27 @@ def get_audio_duration(file_path: str) -> float:
     except Exception:
         return 0.0
 
-def generate_single_chunk_wav(client, text_part: str, part_index: int, total_parts: int) -> str | None:
+def generate_algenib_voice(script_text: str):
+    """ಆಡಿಯೋ ಕತ್ತರಿಸದೆ ಒಂದೇ ಬಾರಿಗೆ temperature=0.45 ನಲ್ಲಿ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಮಾಡುತ್ತದೆ"""
+    client = genai.Client(
+        api_key=GEMINI_API_KEY,
+        http_options=types.HttpOptions(api_version="v1beta"),
+    )
     model = "gemini-2.5-flash-preview-tts"
-    word_count = len(text_part.split())
-    # ಪ್ರತಿ ಪದಕ್ಕೆ ಕನಿಷ್ಠ 0.28 ಸೆಕೆಂಡ್ ಆಡಿಯೋ ಇರಲೇಬೇಕು (ಇಲ್ಲದಿದ್ದರೆ ಅರ್ಧಕ್ಕೆ ಕಟ್ ಆಗಿದೆ ಅಂತ ಅರ್ಥ)
-    min_expected_sec = max(12.0, word_count * 0.28)
-
     contents = [
         types.Content(
             role="user",
-            parts=[types.Part.from_text(text=f"Read this complete Kannada cinema narration smoothly from start to finish:\n\n{text_part}")],
+            parts=[types.Part.from_text(text=f"## Transcript:\n{script_text}")],
         ),
     ]
-    temps = [0.55, 0.7, 0.85, 0.45]
-    best_wav = None
+
+    # ಎಲ್ಲಾ ಪ್ರಯತ್ನಗಳಲ್ಲೂ ಕಡ್ಡಾಯವಾಗಿ temperature=0.45 ಮಾತ್ರ ಬಳಸುತ್ತದೆ (ಗರಿಷ್ಠ 2 ಪ್ರಯತ್ನ — ಫ್ರೀ API ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
+    temps = [0.45, 0.45]
+    best_mp3 = None
     best_dur = 0.0
 
     for attempt, temp in enumerate(temps, start=1):
-        print(f"ಭಾಗ {part_index+1}/{total_parts} ({word_count} ಪದಗಳು) - ಪ್ರಯತ್ನ {attempt}/4 (temp={temp})...", flush=True)
+        print(f"ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ (ಪ್ರಯತ್ನ {attempt}/2, temperature={temp})...", flush=True)
         config = types.GenerateContentConfig(
             temperature=temp,
             response_modalities=["audio"],
@@ -517,55 +449,33 @@ def generate_single_chunk_wav(client, text_part: str, part_index: int, total_par
 
             if audio_data:
                 wav_bytes = convert_to_wav(bytes(audio_data), mime_type or "audio/L16;rate=24000")
-                wav_path = f"part_{part_index}_try_{attempt}.wav"
+                wav_path = f"voiceover_{attempt}.wav"
+                mp3_path = f"voiceover_{attempt}.mp3"
                 with open(wav_path, "wb") as f:
                     f.write(wav_bytes)
-                dur = get_audio_duration(wav_path)
-                print(f"ಭಾಗ {part_index+1} (ಪ್ರಯತ್ನ {attempt}) ಉದ್ದ: {dur:.1f}s (ಅಪೇಕ್ಷಿತ: >{min_expected_sec:.1f}s)", flush=True)
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", wav_path, "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
+                    check=True
+                )
+                dur = get_audio_duration(mp3_path)
+                print(f"ಪ್ರಯತ್ನ {attempt} ಆಡಿಯೋ ಉದ್ದ: {dur/60:.2f} ನಿಮಿಷಗಳು ({dur:.1f} ಸೆಕೆಂಡ್)", flush=True)
 
                 if dur > best_dur:
                     best_dur = dur
-                    best_wav = wav_path
+                    best_mp3 = mp3_path
 
-                if dur >= min_expected_sec:
-                    return wav_path
-                else:
-                    print(f"ಭಾಗ {part_index+1} ಕಟ್ ಆಗಿದೆ, ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-                    time.sleep(2.5)
+                # 120 ಸೆಕೆಂಡ್‌ಗಿಂತ (2 ನಿಮಿಷ) ಹೆಚ್ಚಿದ್ದರೆ ಪೂರ್ತಿ ಆಡಿಯೋ ಬಂದಿದೆ ಅಂತ ಅರ್ಥ
+                if dur >= 120.0:
+                    print("ಪೂರ್ತಿ Algenib ಆಡಿಯೋ ಒಂದೇ ಬಾರಿಗೆ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
+                    return mp3_path
+                elif attempt < len(temps):
+                    print("ಆಡಿಯೋ ಚಿಕ್ಕದಾಗಿ ಬಂದಿದೆ, 5 ಸೆಕೆಂಡ್ ಕಾದು ಒಮ್ಮೆ ರಿಟ್ರೈ ಮಾಡಲಾಗುತ್ತಿದೆ...", flush=True)
+                    time.sleep(5)
         except Exception as e:
-            print(f"ಭಾಗ {part_index+1} ಪ್ರಯತ್ನ {attempt} ಎರರ್: {e}", flush=True)
-            time.sleep(3)
+            print(f"Algenib TTS ಪ್ರಯತ್ನ {attempt} ಎರರ್: {e}", flush=True)
+            time.sleep(5)
 
-    return best_wav
-
-def generate_algenib_voice(script_text: str):
-    client = genai.Client(
-        api_key=GEMINI_API_KEY,
-        http_options=types.HttpOptions(api_version="v1beta"),
-    )
-    parts = split_script_into_small_chunks(script_text, max_words_per_chunk=135)
-    print(f"ವಾಯ್ಸ್ ಕಟ್ ಆಗದಂತೆ ಸ್ಕ್ರಿಪ್ಟ್ ಅನ್ನು {len(parts)} ಚಿಕ್ಕ ಭಾಗಗಳಲ್ಲಿ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-
-    final_wavs = []
-    for idx, part_text in enumerate(parts):
-        wav_file = generate_single_chunk_wav(client, part_text, idx, len(parts))
-        if wav_file and os.path.exists(wav_file):
-            final_wavs.append(wav_file)
-        time.sleep(2)
-
-    if final_wavs:
-        with open("concat_list.txt", "w") as lf:
-            for wf in final_wavs:
-                lf.write(f"file '{wf}'\n")
-        mp3_path = "voiceover.mp3"
-        subprocess.run(
-            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", "concat_list.txt", "-b:a", "128k", mp3_path, "-hide_banner", "-loglevel", "error"],
-            check=True
-        )
-        total_dur = get_audio_duration(mp3_path)
-        print(f"ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಸಿದ್ಧವಾಗಿದೆ! ಒಟ್ಟು ಉದ್ದ: {total_dur/60:.2f} ನಿಮಿಷಗಳು ({total_dur:.1f} ಸೆಕೆಂಡ್)", flush=True)
-        return mp3_path
-    return None
+    return best_mp3
 
 def main():
     state = load_state()
@@ -586,6 +496,8 @@ def main():
     top_txt = content_data.get("top_text", "ಟ್ರೈಲರ್ ಧಮಾಕಾ!")
     bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
     script_text = content_data.get("script", "")
+
+    time.sleep(3)
 
     # 2. ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಕಳುಹಿಸುವುದು
     clean_path, thumb_path = create_both_thumbnails(vid_id, top_txt, bottom_txt)
@@ -621,30 +533,28 @@ def main():
 
     time.sleep(2)
 
-    # 3. 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಳುಹಿಸುವುದು
-    hd_frames = extract_16_hd_frames(url, vid_id, search_title, target_count=16)
+    # 3. 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಳುಹಿಸುವುದು
+    hd_frames = extract_4_hd_frames(url, vid_id)
     if hd_frames:
-        for batch_idx in range(0, len(hd_frames), 8):
-            batch = hd_frames[batch_idx:batch_idx + 8]
-            media_group = []
-            files_dict = {}
-            for idx, fpath in enumerate(batch):
-                attach_key = f"photo_{idx}"
-                item = {"type": "photo", "media": f"attach://{attach_key}"}
-                if idx == 0:
-                    item["caption"] = f"📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು (ಭಾಗ {batch_idx//8 + 1})</b>"
-                    item["parse_mode"] = "HTML"
-                media_group.append(item)
-                files_dict[attach_key] = open(fpath, "rb")
+        media_group = []
+        files_dict = {}
+        for idx, fpath in enumerate(hd_frames):
+            attach_key = f"photo_{idx}"
+            item = {"type": "photo", "media": f"attach://{attach_key}"}
+            if idx == 0:
+                item["caption"] = "📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ 4 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು</b>"
+                item["parse_mode"] = "HTML"
+            media_group.append(item)
+            files_dict[attach_key] = open(fpath, "rb")
 
-            requests.post(
-                f"{base_url}/sendMediaGroup",
-                data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
-                files=files_dict
-            )
-            for fobj in files_dict.values():
-                fobj.close()
-            time.sleep(2)
+        requests.post(
+            f"{base_url}/sendMediaGroup",
+            data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
+            files=files_dict
+        )
+        for fobj in files_dict.values():
+            fobj.close()
+        time.sleep(2)
 
     # 4. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
@@ -668,7 +578,7 @@ def main():
         )
         time.sleep(1)
 
-    # 6. ಕಟ್ ಆಗದ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
+    # 6. ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
