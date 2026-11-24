@@ -197,8 +197,8 @@ def generate_script_and_seo(title, url):
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
-def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
-    """ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್‌ನ ಅಕ್ಷರಗಳನ್ನು AI ಮೂಲಕ ತೆಗೆದುಹಾಕಿ, ಮೇಲೆ ಮತ್ತು ಕೆಳಗೆ ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕುತ್ತದೆ"""
+def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
+    """1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು 2) ಮೇಲೆ-ಕೆಳಗೆ ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕಿದ ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
     print("ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಅಕ್ಷರಗಳನ್ನು ತೆಗೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
     img_bytes = None
     for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
@@ -208,10 +208,7 @@ def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
             break
 
     if not img_bytes:
-        return None
-
-    with open("orig_thumb.jpg", "wb") as f:
-        f.write(img_bytes)
+        return None, None
 
     clean_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
@@ -239,15 +236,18 @@ def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
     except Exception as e:
         print(f"AI ಇಮೇಜ್ ಕ್ಲೀನ್ ಎಚ್ಚರಿಕೆ (ಒರಿಜಿನಲ್ ಫೋಟೋ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
 
-    # 1280x720 HD YouTube Thumbnail ಅಳತೆಗೆ ಹೊಂದಿಸುವುದು
+    # 1280x720 HD YouTube Thumbnail ಅಳತೆಗೆ ಹೊಂದಿಸಿ ಖಾಲಿ ಫೋಟೋ ಸೇವ್ ಮಾಡುವುದು
     clean_img = clean_img.resize((1280, 720), Image.Resampling.LANCZOS)
-    draw = ImageDraw.Draw(clean_img, "RGBA")
+    clean_photo_path = "clean_photo.jpg"
+    clean_img.save(clean_photo_path, "JPEG", quality=95)
 
-    # ಮೇಲ್ಭಾಗ ಮತ್ತು ಕೆಳಭಾಗದಲ್ಲಿ ಅಕ್ಷರಗಳು ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಲು ಡಾರ್ಕ್ ಸಿನಿಮ್ಯಾಟಿಕ್ ಗ್ರೇಡಿಯಂಟ್ ಬಾರ್
+    # ಹಂತ 2: ಖಾಲಿ ಫೋಟೋ ಮೇಲೆ Top & Bottom ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕಿ ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುವುದು
+    ready_img = clean_img.copy()
+    draw = ImageDraw.Draw(ready_img, "RGBA")
+
     draw.rectangle([(0, 0), (1280, 115)], fill=(0, 0, 0, 195))
     draw.rectangle([(0, 605), (1280, 720)], fill=(180, 0, 0, 215))
 
-    # ಕನ್ನಡ ಫಾಂಟ್ ಲೋಡ್ ಮಾಡುವುದು
     font_paths = [
         "/usr/share/fonts/truetype/noto/NotoSansKannada-Bold.ttf",
         "/usr/share/fonts/truetype/noto/NotoSansKannada-Regular.ttf",
@@ -270,14 +270,13 @@ def create_readymade_thumbnail(vid_id: str, top_text: str, bottom_text: str):
             stroke_fill=(0, 0, 0, 255)
         )
 
-    # Top Text (ಹಳದಿ ಬಣ್ಣದಲ್ಲಿ ಬೋಲ್ಡ್ ಆಗಿ) ಮತ್ತು Bottom Text (ಬಿಳಿ ಬಣ್ಣದಲ್ಲಿ ಬೋಲ್ಡ್ ಆಗಿ)
     draw_centered_text(top_text, 22, font_top, (255, 230, 0, 255))
     draw_centered_text(bottom_text, 625, font_bottom, (255, 255, 255, 255))
 
     final_thumb_path = "readymade_thumbnail.jpg"
-    clean_img.save(final_thumb_path, "JPEG", quality=95)
-    print("ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (Top & Bottom Text) ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
-    return final_thumb_path
+    ready_img.save(final_thumb_path, "JPEG", quality=95)
+    print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
+    return clean_photo_path, final_thumb_path
 
 def split_script_cleanly(text: str, target_parts: int = 3) -> list[str]:
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
@@ -457,12 +456,25 @@ def main():
     bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
     script_text = content_data.get("script", "")
 
-    # 2. ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (ಅಕ್ಷರ ತೆಗೆದು Top & Bottom ಟೆಕ್ಸ್ಟ್ ಹಾಕುವುದು)
-    thumb_path = create_readymade_thumbnail(vid_id, top_txt, bottom_txt)
-    caption = (
-        f"🎬 <b>{search_title}</b>\n"
-        f"🔗 <b>YouTube Link:</b> {url}\n\n"
-        f"🖼️ <b>ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧವಾಗಿದೆ!</b>\n"
+    # 2. ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಕಳುಹಿಸುವುದು
+    clean_path, thumb_path = create_both_thumbnails(vid_id, top_txt, bottom_txt)
+
+    if clean_path and os.path.exists(clean_path):
+        clean_caption = (
+            f"🎬 <b>{search_title}</b>\n"
+            f"🔗 <b>YouTube Link:</b> {url}\n\n"
+            f"🖼️ <b>1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ (Clean Photo)</b>"
+        )
+        with open(clean_path, "rb") as cf:
+            requests.post(
+                f"{base_url}/sendPhoto",
+                data={"chat_id": CHAT_ID, "caption": clean_caption, "parse_mode": "HTML"},
+                files={"photo": cf}
+            )
+        time.sleep(1.5)
+
+    ready_caption = (
+        f"✅ <b>2) ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (Ready Thumbnail)</b>\n"
         f"🔺 <b>Top:</b> {top_txt}\n"
         f"🔻 <b>Bottom:</b> {bottom_txt}"
     )
@@ -470,11 +482,11 @@ def main():
         with open(thumb_path, "rb") as tf:
             requests.post(
                 f"{base_url}/sendPhoto",
-                data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
+                data={"chat_id": CHAT_ID, "caption": ready_caption, "parse_mode": "HTML"},
                 files={"photo": tf}
             )
     else:
-        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"})
+        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": ready_caption, "parse_mode": "HTML"})
 
     time.sleep(2)
 
