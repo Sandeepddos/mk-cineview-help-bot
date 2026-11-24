@@ -7,7 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
 from google import genai
 from google.genai import types
 
@@ -212,7 +212,6 @@ def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
 
     clean_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-    # ಹಂತ 1: Gemini Image Editing ಮೂಲಕ ಒರಿಜಿನಲ್ ಫೋಟೋದಲ್ಲಿರುವ ಎಲ್ಲಾ ಅಕ್ಷರ/ಲೋಗೋಗಳನ್ನು ತೆಗೆದುಹಾಕುವುದು
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         edit_prompt = (
@@ -236,12 +235,10 @@ def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
     except Exception as e:
         print(f"AI ಇಮೇಜ್ ಕ್ಲೀನ್ ಎಚ್ಚರಿಕೆ (ಒರಿಜಿನಲ್ ಫೋಟೋ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
 
-    # 1280x720 HD YouTube Thumbnail ಅಳತೆಗೆ ಹೊಂದಿಸಿ ಖಾಲಿ ಫೋಟೋ ಸೇವ್ ಮಾಡುವುದು
     clean_img = clean_img.resize((1280, 720), Image.Resampling.LANCZOS)
     clean_photo_path = "clean_photo.jpg"
     clean_img.save(clean_photo_path, "JPEG", quality=95)
 
-    # ಹಂತ 2: ಖಾಲಿ ಫೋಟೋ ಮೇಲೆ Top & Bottom ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕಿ ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುವುದು
     ready_img = clean_img.copy()
     draw = ImageDraw.Draw(ready_img, "RGBA")
 
@@ -277,6 +274,104 @@ def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
     ready_img.save(final_thumb_path, "JPEG", quality=95)
     print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
+
+def extract_16_hd_frames(youtube_url: str, target_count: int = 16) -> list[str]:
+    """YouTube ಬ್ಲಾಕ್ ತಪ್ಪಿಸಿ Android/iOS ಕ್ಲೈಂಟ್ ಮೂಲಕ 1080p ಸ್ಟ್ರೀಮ್ ಪಡೆದು, ಮಬ್ಬಿಲ್ಲದ 16 HD ಫೋಟೋಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ"""
+    print("YouTube ನಿಂದ 1080p HD ವಿಡಿಯೋ ಸ್ಟ್ರೀಮ್ ಪಡೆದು 16 ಕ್ರಿಸ್ಟಲ್-ಕ್ಲಿಯರ್ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗುತ್ತಿದೆ...", flush=True)
+    stream_url = None
+    duration = 0
+
+    ydl_opts = {
+        "quiet": True,
+        "format": "bestvideo[height<=1080][ext=mp4]/best[height<=1080][ext=mp4]/best",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "web"]
+            }
+        }
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(youtube_url, download=False)
+            stream_url = info.get("url")
+            duration = info.get("duration") or 120
+    except Exception as e:
+        print(f"yt-dlp ಸ್ಟ್ರೀಮ್ ಎರರ್: {e}", flush=True)
+
+    # ಸ್ಟ್ರೀಮ್ URL ನೇರವಾಗಿ ಸಿಗದಿದ್ದರೆ ಚಿಕ್ಕದಾಗಿ 720p/1080p MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಪ್ರಯತ್ನಿಸುವುದು
+    video_source = stream_url
+    if not video_source:
+        try:
+            dl_opts = {
+                "quiet": True,
+                "outtmpl": "temp_trailer.mp4",
+                "format": "bestvideo[height<=1080][ext=mp4]/best[ext=mp4]/best",
+                "extractor_args": {"youtube": {"player_client": ["android", "ios"]}}
+            }
+            with yt_dlp.YoutubeDL(dl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=True)
+                duration = info.get("duration") or 120
+            if os.path.exists("temp_trailer.mp4"):
+                video_source = "temp_trailer.mp4"
+        except Exception as e:
+            print(f"ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಎರರ್: {e}", flush=True)
+            return []
+
+    if not video_source:
+        return []
+
+    # ಮೊದಲ 8% (ಲೋಗೋ/ಡಿಸ್ಕ್ಲೇಮರ್) ಮತ್ತು ಕೊನೆಯ 12% (ಟೈಟಲ್ ಕಾರ್ಡ್) ಬಿಟ್ಟು ಮಧ್ಯದಿಂದ 32 ಫ್ರೇಮ್ ತೆಗೆಯುವುದು
+    start_sec = max(4.0, duration * 0.08)
+    end_sec = max(start_sec + 10.0, duration * 0.88)
+    usable_dur = end_sec - start_sec
+    sample_count = 32
+    step = usable_dur / sample_count
+
+    scored_frames = []
+    for i in range(sample_count):
+        ts = start_sec + (i * step)
+        raw_path = f"raw_frame_{i:02d}.jpg"
+        try:
+            subprocess.run(
+                [
+                    "ffmpeg", "-y", "-ss", f"{ts:.2f}", "-i", video_source,
+                    "-frames:v", "1", "-q:v", "1",
+                    "-vf", "scale=1280:720:flags=lanczos",
+                    raw_path, "-hide_banner", "-loglevel", "error"
+                ],
+                timeout=15,
+                check=True
+            )
+            if os.path.exists(raw_path):
+                img = Image.open(raw_path).convert("L")
+                stat = ImageStat.Stat(img)
+                brightness = stat.mean[0]
+                # ತುಂಬಾ ಕಪ್ಪು (Fade-in/out) ಅಥವಾ ತುಂಬಾ ಬಿಳಿ ಫ್ರೇಮ್‌ಗಳನ್ನು ತೆಗೆದುಹಾಕುವುದು
+                if brightness < 25 or brightness > 235:
+                    continue
+                # ಎಡ್ಜ್ ಶಾರ್ಪ್‌ನೆಸ್ (Sharpness) ಅಳೆದು ಬ್ಲರ್ ಇಲ್ಲದ ಸ್ಪಷ್ಟ ಫೋಟೋಗಳನ್ನು ಆರಿಸುವುದು
+                edges = img.filter(ImageFilter.FIND_EDGES)
+                sharpness = ImageStat.Stat(edges).stddev[0]
+                scored_frames.append((sharpness, i, raw_path))
+        except Exception:
+            continue
+
+    if not scored_frames:
+        return []
+
+    # ಶಾರ್ಪ್‌ನೆಸ್ ಆಧಾರದ ಮೇಲೆ ಟಾಪ್ 16 ಅತ್ಯುತ್ತಮ ಫೋಟೋಗಳನ್ನು ಆರಿಸಿ, ವಿಡಿಯೋದ ಕ್ರಮದಲ್ಲೇ ಜೋಡಿಸುವುದು
+    scored_frames.sort(key=lambda x: x[0], reverse=True)
+    top_16 = sorted(scored_frames[:target_count], key=lambda x: x[1])
+
+    final_frames = []
+    for idx, (_, _, path) in enumerate(top_16, start=1):
+        clean_name = f"hd_scene_{idx:02d}.jpg"
+        os.replace(path, clean_name)
+        final_frames.append(clean_name)
+
+    print(f"ಒಟ್ಟು {len(final_frames)} ಹೈ-ಕ್ವಾಲಿಟಿ (1280x720 HD) ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
+    return final_frames
 
 def split_script_cleanly(text: str, target_parts: int = 3) -> list[str]:
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
@@ -490,7 +585,33 @@ def main():
 
     time.sleep(2)
 
-    # 3. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
+    # 3. ವಿಡಿಯೋದಿಂದ ಕಟ್ ಮಾಡಿದ 16 ಕ್ರಿಸ್ಟಲ್-ಕ್ಲಿಯರ್ HD ಫೋಟೋಗಳನ್ನು ಕಳುಹಿಸುವುದು
+    hd_frames = extract_16_hd_frames(url, target_count=16)
+    if hd_frames:
+        # 8 + 8 ಫೋಟೋಗಳ 2 ಆಲ್ಬಮ್‌ಗಳಾಗಿ ಕಳುಹಿಸುವುದು (ಟೆಲಿಗ್ರಾಂ ಗರಿಷ್ಠ 10 ಫೋಟೋಗಳನ್ನು ಒಂದೇ ಆಲ್ಬಮ್‌ನಲ್ಲಿ ಅನುಮತಿಸುತ್ತದೆ)
+        for batch_idx in range(0, len(hd_frames), 8):
+            batch = hd_frames[batch_idx:batch_idx + 8]
+            media_group = []
+            files_dict = {}
+            for idx, fpath in enumerate(batch):
+                attach_key = f"photo_{idx}"
+                item = {"type": "photo", "media": f"attach://{attach_key}"}
+                if idx == 0:
+                    item["caption"] = f"📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು (ಭಾಗ {batch_idx//8 + 1})</b>"
+                    item["parse_mode"] = "HTML"
+                media_group.append(item)
+                files_dict[attach_key] = open(fpath, "rb")
+
+            requests.post(
+                f"{base_url}/sendMediaGroup",
+                data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
+                files=files_dict
+            )
+            for fobj in files_dict.values():
+                fobj.close()
+            time.sleep(2)
+
+    # 4. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
     seo_msg = (
         f"🚀 <b>YouTube SEO ಪ್ಯಾಕೇಜ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
@@ -502,7 +623,7 @@ def main():
 
     time.sleep(2)
 
-    # 4. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
+    # 5. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
     header = "🎙️ <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (ಸಿನಿಮಾ & ಟ್ರೈಲರ್):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
@@ -512,7 +633,7 @@ def main():
         )
         time.sleep(1)
 
-    # 5. Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
+    # 6. Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
