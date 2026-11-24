@@ -7,8 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
-from pytubefix import YouTube
-from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
 
@@ -136,7 +135,7 @@ def search_video(history_list, custom_topic=None):
     return None, None, None
 
 def get_available_text_models(client):
-    models = ["gemini-3.0-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
+    models = ["gemini-3.1-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
     try:
         for m in client.models.list():
             name = m.name.replace("models/", "")
@@ -145,7 +144,6 @@ def get_available_text_models(client):
                 and ("flash" in name or "pro" in name)
                 and "tts" not in name
                 and "image" not in name
-                and "2.5-flash" not in name
                 and name not in models
             ):
                 models.append(name)
@@ -162,7 +160,7 @@ def generate_script_and_seo(title, url):
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
 ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ:
 1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಈ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ **ಮೂವಿ ಟ್ರೈಲರ್ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು ಆ ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ** ಎರಡೂ ಸಮಾನವಾಗಿ ಇರಬೇಕು.
-2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು), ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** ಹಾಗೂ **BOTTOM_TEXT**, ಮತ್ತು ಬೇರೆ Image AI (Flux) ಗಾಗಿ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಒಂದು ಸಿನಿಮ್ಯಾಟಿಕ್ **thumbnail_image_prompt** ಕೊಡು.
+2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು), ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** ಹಾಗೂ **BOTTOM_TEXT**, ಮತ್ತು Free Image AI (Flux) ಗಾಗಿ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಸಿನಿಮ್ಯಾಟಿಕ್ **thumbnail_image_prompt** ಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
@@ -212,7 +210,7 @@ def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str
             clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
             print("Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
     except Exception as e:
-        print(f"Pollinations AI ಎಚ್ಚರಿಕೆ (YouTube HD ಬ್ಯಾಕಪ್ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
+        print(f"Pollinations AI ಎಚ್ಚರಿಕೆ: {e}", flush=True)
 
     if clean_img is None:
         for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
@@ -262,176 +260,6 @@ def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str
     ready_img.save(final_thumb_path, "JPEG", quality=95)
     print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
-
-def download_via_pytubefix(youtube_url: str, output_file: str) -> bool:
-    """pytubefix ಬಳಸಿ ವಿವಿಧ ಕ್ಲೈಂಟ್‌ಗಳ ಮೂಲಕ MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
-    print("pytubefix ಮೂಲಕ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-    for client_type in ["ANDROID_VR", "IOS", "WEB_CREATOR", "ANDROID", "WEB"]:
-        try:
-            if os.path.exists(output_file):
-                os.remove(output_file)
-            yt = YouTube(youtube_url, client=client_type)
-            # ಮೊದಲು 720p ಅಥವಾ ಲಭ್ಯವಿರುವ ಅತ್ಯುತ್ತಮ progressive MP4 ಹುಡುಕುವುದು
-            stream = (
-                yt.streams.filter(progressive=True, file_extension="mp4", resolution="720p").first()
-                or yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
-                or yt.streams.filter(file_extension="mp4", resolution="1080p").first()
-                or yt.streams.filter(file_extension="mp4", resolution="720p").first()
-                or yt.streams.filter(file_extension="mp4").first()
-            )
-            if stream:
-                stream.download(filename=output_file)
-                if os.path.exists(output_file) and os.path.getsize(output_file) > 150000:
-                    print(f"pytubefix ({client_type}) ಮೂಲಕ MP4 ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!", flush=True)
-                    return True
-        except Exception as e:
-            print(f"pytubefix ({client_type}) ಸ್ಕಿಪ್: {e}", flush=True)
-            continue
-    return False
-
-def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
-    """ಉಚಿತ Cobalt API ಸರ್ವರ್‌ಗಳ ಮೂಲಕ YouTube IP ಬ್ಲಾಕ್ ತಪ್ಪಿಸಿ MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
-    print("ಉಚಿತ Cobalt API ಮೂಲಕ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-    cobalt_urls = []
-    try:
-        inst_res = requests.get("https://instances.cobalt.best/api/instances.json", timeout=10).json()
-        for item in inst_res:
-            if item.get("online") and item.get("services", {}).get("youtube"):
-                api_u = item.get("api") or item.get("url")
-                if api_u:
-                    if not api_u.startswith("http"):
-                        api_u = f"https://{api_u}"
-                    cobalt_urls.append(api_u.rstrip("/"))
-    except Exception:
-        pass
-
-    for fallback in ["https://cobalt-api.kwiatekmiki.com", "https://cobalt-backend.canine.tools", "https://api.cobalt.tools"]:
-        if fallback not in cobalt_urls:
-            cobalt_urls.append(fallback)
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    payload = {
-        "url": youtube_url,
-        "videoQuality": "720",
-        "youtubeVideoCodec": "h264",
-        "filenameStyle": "basic"
-    }
-
-    for api_base in cobalt_urls[:8]:
-        try:
-            r = requests.post(f"{api_base}/", json=payload, headers=headers, timeout=15)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            dl_link = data.get("url")
-            if dl_link:
-                with requests.get(dl_link, stream=True, timeout=60) as vid_r:
-                    if vid_r.status_code == 200:
-                        with open(output_file, "wb") as vf:
-                            for chunk in vid_r.iter_content(chunk_size=1024 * 256):
-                                if chunk:
-                                    vf.write(chunk)
-                        if os.path.exists(output_file) and os.path.getsize(output_file) > 150000:
-                            print("Cobalt API ಮೂಲಕ MP4 ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!", flush=True)
-                            return True
-        except Exception:
-            continue
-    return False
-
-def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) -> list[str]:
-    """pytubefix + Cobalt API + yt-dlp ಮತ್ತು FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ"""
-    video_file = "temp_trailer.mp4"
-    downloaded = download_via_pytubefix(youtube_url, video_file)
-
-    if not downloaded:
-        downloaded = download_via_cobalt(youtube_url, video_file)
-
-    if not downloaded:
-        for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
-            dl_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "outtmpl": video_file,
-                "format": "best[height<=720][ext=mp4]/best[ext=mp4]/best",
-                "extractor_args": {"youtube": {"player_client": clients}}
-            }
-            try:
-                with yt_dlp.YoutubeDL(dl_opts) as ydl:
-                    ydl.extract_info(youtube_url, download=True)
-                if os.path.exists(video_file) and os.path.getsize(video_file) > 150000:
-                    downloaded = True
-                    break
-            except Exception:
-                continue
-
-    final_frames = []
-    if downloaded and os.path.exists(video_file):
-        try:
-            dur_res = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_file],
-                capture_output=True, text=True, check=True
-            )
-            duration = float(dur_res.stdout.strip())
-        except Exception:
-            duration = 120.0
-
-        start_sec = max(4.0, duration * 0.08)
-        end_sec = max(start_sec + 10.0, duration * 0.88)
-        usable_dur = end_sec - start_sec
-        sample_count = 32
-        step = usable_dur / sample_count
-
-        scored_frames = []
-        for i in range(sample_count):
-            ts = start_sec + (i * step)
-            raw_path = f"raw_frame_{i:02d}.jpg"
-            try:
-                subprocess.run(
-                    [
-                        "ffmpeg", "-y", "-ss", f"{ts:.2f}", "-i", video_file,
-                        "-frames:v", "1", "-q:v", "1",
-                        "-vf", "scale=1280:720:flags=lanczos",
-                        raw_path, "-hide_banner", "-loglevel", "error"
-                    ],
-                    timeout=15,
-                    check=True
-                )
-                if os.path.exists(raw_path):
-                    img = Image.open(raw_path).convert("L")
-                    brightness = ImageStat.Stat(img).mean[0]
-                    if brightness < 25 or brightness > 235:
-                        continue
-                    sharpness = ImageStat.Stat(img.filter(ImageFilter.FIND_EDGES)).stddev[0]
-                    scored_frames.append((sharpness, i, raw_path))
-            except Exception:
-                continue
-
-        if scored_frames:
-            scored_frames.sort(key=lambda x: x[0], reverse=True)
-            top_frames = sorted(scored_frames[:target_count], key=lambda x: x[1])
-            for idx, (_, _, path) in enumerate(top_frames, start=1):
-                clean_name = f"hd_scene_{idx:02d}.jpg"
-                os.replace(path, clean_name)
-                final_frames.append(clean_name)
-            print(f"ವಿಡಿಯೋದಿಂದ {len(final_frames)} ಅತ್ಯುತ್ತಮ HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
-            return final_frames
-
-    for yt_thumb in ["maxresdefault.jpg", "hq1.jpg", "hq2.jpg", "hq3.jpg"]:
-        try:
-            r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{yt_thumb}", timeout=10)
-            if r.status_code == 200 and len(r.content) > 4000:
-                img = Image.open(io.BytesIO(r.content)).convert("RGB").resize((1280, 720), Image.Resampling.LANCZOS)
-                fname = f"hd_scene_{len(final_frames)+1:02d}.jpg"
-                img.save(fname, "JPEG", quality=95)
-                final_frames.append(fname)
-        except Exception:
-            pass
-
-    return final_frames
 
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
@@ -608,32 +436,7 @@ def main():
 
     time.sleep(2)
 
-    # 3. pytubefix + Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು
-    hd_frames = extract_16_hd_frames(url, vid_id, target_count=16)
-    if hd_frames:
-        for batch_idx in range(0, len(hd_frames), 8):
-            batch = hd_frames[batch_idx:batch_idx + 8]
-            media_group = []
-            files_dict = {}
-            for idx, fpath in enumerate(batch):
-                attach_key = f"photo_{idx}"
-                item = {"type": "photo", "media": f"attach://{attach_key}"}
-                if idx == 0:
-                    item["caption"] = f"📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು (ಭಾಗ {batch_idx//8 + 1})</b>"
-                    item["parse_mode"] = "HTML"
-                media_group.append(item)
-                files_dict[attach_key] = open(fpath, "rb")
-
-            requests.post(
-                f"{base_url}/sendMediaGroup",
-                data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
-                files=files_dict
-            )
-            for fobj in files_dict.values():
-                fobj.close()
-            time.sleep(2)
-
-    # 4. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
+    # 3. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
     seo_msg = (
         f"🚀 <b>YouTube SEO ಪ್ಯಾಕೇಜ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
@@ -645,7 +448,7 @@ def main():
 
     time.sleep(2)
 
-    # 5. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
+    # 4. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
     header = "🎙️ <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (ಸಿನಿಮಾ & ಟ್ರೈಲರ್):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
@@ -655,7 +458,7 @@ def main():
         )
         time.sleep(1)
 
-    # 6. Gemini ಮೂಲಕ ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
+    # 5. Gemini ಮೂಲಕ ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
