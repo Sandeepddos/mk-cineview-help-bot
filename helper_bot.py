@@ -1,5 +1,4 @@
 import os
-import re
 import io
 import json
 import time
@@ -8,7 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
-from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 from google import genai
 from google.genai import types
 
@@ -19,16 +18,31 @@ GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 HISTORY_FILE = "helper_history.json"
 VOICE_NAME = "Algenib"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9"
-}
+SEARCH_QUERIES = [
+    # --- ಕನ್ನಡಕ್ಕೆ ಮೊದಲ ಆದ್ಯತೆ (Kannada Priority) ---
+    "New Kannada Movie Official Trailer 2026",
+    "ಕನ್ನಡ ಹೊಸ ಸಿನಿಮಾ ಟ್ರೈಲರ್ 2026",
+    "Kannada New OTT Releases This Week 2026",
+    "ಕನ್ನಡ ಹೊಸ OTT ಸಿನಿಮಾಗಳು 2026",
+    "Kannada Movies Releasing This Week 2026",
+    "Kannada Movie Official Teaser 2026",
+    "Kannada Movie Box Office Collection 2026",
 
-IMDB_SEARCH_URLS = [
-    # 1. ಕನ್ನಡದ ಹೊಸ 2026 ಸಿನಿಮಾಗಳು (ಮೊದಲ ಆದ್ಯತೆ)
-    "https://www.imdb.com/search/title/?title_type=feature&release_date=2026-01-01,2026-12-31&primary_language=kn&sort=popularity,asc",
-    # 2. ಇತ್ತೀಚಿನ ಟ್ರೆಂಡಿಂಗ್ ಭಾರತೀಯ ಸಿನಿಮಾಗಳು (Pan-India)
-    "https://www.imdb.com/search/title/?title_type=feature&release_date=2026-01-01,2026-12-31&country_of_origin=IN&sort=moviemeter,asc"
+    # --- ಕನ್ನಡ ಸಿಗದಿದ್ದರೆ ಮಾತ್ರ ಬೇರೆ ಭಾಷೆ / Pan-India ---
+    "Pan India Movie Official Trailer 2026",
+    "New OTT Releases Today Kannada Telugu Tamil 2026",
+    "Indian Movie Box Office Collection Today 2026"
+]
+
+IGNORE_WORDS = [
+    "review", "explained", "ending", "concept", "fan made", "fan-made",
+    "spoof", "reaction", "full movie", "roast", "breakdown", "dubbed"
+]
+
+REQUIRED_WORDS = [
+    "official trailer", "official teaser", "releasing this week",
+    "ott release", "ott releases", "box office", "new trailer",
+    "ಟ್ರೈಲರ್", "ಟೀಸರ್", "ಬಾಕ್ಸ್ ಆಫೀಸ್", "ರಿಲೀಸ್"
 ]
 
 def load_state():
@@ -45,112 +59,80 @@ def save_state(state):
     with open(HISTORY_FILE, "w") as f:
         json.dump(state, f, indent=2)
 
-def check_telegram_command(state):
-    """ಟೆಲಿಗ್ರಾಂನಲ್ಲಿ IMDb ಲಿಂಕ್ ಅಥವಾ /topic ಬಂದಿದೆಯಾ ಅಂತ ಚೆಕ್ ಮಾಡುತ್ತದೆ"""
+def check_telegram_topic_command(state):
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
     last_id = state.get("last_update_id", 0)
-    custom_imdb_id = None
-    custom_topic = None
     try:
         res = requests.get(f"{base_url}/getUpdates", params={"offset": last_id + 1, "timeout": 5}, timeout=10).json()
+        topic_query = None
         for upd in res.get("result", []):
             state["last_update_id"] = upd["update_id"]
             msg = upd.get("message", {})
             text = (msg.get("text") or "").strip()
-            if str(msg.get("chat", {}).get("id")) != str(CHAT_ID):
-                continue
-            imdb_match = re.search(r"(tt\d{7,10})", text)
-            if imdb_match:
-                custom_imdb_id = imdb_match.group(1)
-            elif text.lower().startswith("/topic"):
-                custom_topic = text[6:].strip()
+            if str(msg.get("chat", {}).get("id")) == str(CHAT_ID) and text.lower().startswith("/topic"):
+                topic_query = text[6:].strip()
+        return topic_query
     except Exception as e:
         print(f"Telegram update ಚೆಕ್ ಎರರ್: {e}", flush=True)
-    return custom_imdb_id, custom_topic
-
-def get_imdb_movie_details(imdb_id: str):
-    """IMDb ಪುಟದಿಂದ ಸಿನಿಮಾದ ಹೆಸರು, ವಿವರ, ಪೋಸ್ಟರ್ ಮತ್ತು ಟ್ರೈಲರ್ ವಿಡಿಯೋ ಲಿಂಕ್ ತೆಗೆಯುತ್ತದೆ"""
-    url = f"https://www.imdb.com/title/{imdb_id}/"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=20)
-        if r.status_code != 200:
-            return None
-        html = r.text
-
-        # JSON-LD ಮೆಟಾಡೇಟಾ ಓದುವುದು
-        ld_match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
-        ld_data = json.loads(ld_match.group(1)) if ld_match else {}
-
-        title = ld_data.get("name") or imdb_id
-        description = ld_data.get("description") or ""
-        poster_url = ld_data.get("image") or ""
-        genres = ", ".join(ld_data.get("genre", [])) if isinstance(ld_data.get("genre"), list) else str(ld_data.get("genre", ""))
-        actors = ", ".join([a.get("name", "") for a in ld_data.get("actor", [])[:6]])
-        directors = ", ".join([d.get("name", "") for d in ld_data.get("director", [])[:3]])
-
-        trailer_obj = ld_data.get("trailer") or {}
-        trailer_embed = trailer_obj.get("embedUrl") or trailer_obj.get("url") or ""
-        if trailer_embed and trailer_embed.startswith("/"):
-            trailer_embed = f"https://www.imdb.com{trailer_embed}"
-
-        # HTML ನಲ್ಲಿರುವ /video/vi... ಲಿಂಕ್ ಹುಡುಕುವುದು
-        if not trailer_embed:
-            vi_match = re.search(r'(/video/vi\d+)', html)
-            if vi_match:
-                trailer_embed = f"https://www.imdb.com{vi_match.group(1)}/"
-
-        details_summary = (
-            f"Movie Title: {title}\n"
-            f"Genre: {genres}\n"
-            f"Director: {directors}\n"
-            f"Cast: {actors}\n"
-            f"Storyline: {description}"
-        )
-
-        return {
-            "imdb_id": imdb_id,
-            "url": url,
-            "title": title,
-            "details": details_summary,
-            "poster_url": poster_url,
-            "trailer_url": trailer_embed
-        }
-    except Exception as e:
-        print(f"IMDb ವಿವರ ಪಡೆಯುವಲ್ಲಿ ಎರರ್ ({imdb_id}): {e}", flush=True)
         return None
 
-def auto_find_imdb_movie(history_list, custom_imdb_id=None, custom_topic=None):
-    """IMDb ನಿಂದ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಟ್ರೈಲರ್ ಇರುವ ಹೊಸ ಕನ್ನಡ/ಭಾರತೀಯ ಸಿನಿಮಾ ಹುಡುಕುತ್ತದೆ"""
-    if custom_imdb_id:
-        print(f"ನಿರ್ದಿಷ್ಟ IMDb ಸಿನಿಮಾ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ: {custom_imdb_id}", flush=True)
-        return get_imdb_movie_details(custom_imdb_id)
+def search_video(history_list, custom_topic=None):
+    ydl_opts = {
+        "quiet": True,
+        "extract_flat": True,
+        "playlistend": 10
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        if custom_topic:
+            print(f"ನಿರ್ದಿಷ್ಟ ಟಾಪಿಕ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ: {custom_topic}", flush=True)
+            encoded_q = urllib.parse.quote(f"{custom_topic} Kannada 2026")
+            search_url = f"https://www.youtube.com/results?search_query={encoded_q}"
+            info = ydl.extract_info(search_url, download=False)
+            for entry in info.get("entries", []):
+                vid_id = entry.get("id")
+                title = entry.get("title") or custom_topic
+                duration = entry.get("duration") or 0
+                if vid_id and (duration == 0 or duration <= 900):
+                    return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
+            return None, None, None
 
-    if custom_topic:
-        print(f"IMDb ನಲ್ಲಿ ಟಾಪಿಕ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ: {custom_topic}", flush=True)
-        q = urllib.parse.quote(custom_topic)
-        r = requests.get(f"https://www.imdb.com/find/?q={q}&s=tt&ttype=ft", headers=HEADERS, timeout=15)
-        ids = list(dict.fromkeys(re.findall(r"/title/(tt\d{7,10})/", r.text)))
-        for tid in ids[:5]:
-            info = get_imdb_movie_details(tid)
-            if info:
-                return info
+        print("ಹೊಸ ಕನ್ನಡ ವಿಡಿಯೋ ಹುಡುಕಲಾಗುತ್ತಿದೆ...", flush=True)
+        for query in SEARCH_QUERIES:
+            encoded_q = urllib.parse.quote(query)
+            search_url = f"https://www.youtube.com/results?search_query={encoded_q}&sp=EgIIAg%253D%253D"
+            try:
+                info = ydl.extract_info(search_url, download=False)
+            except Exception as e:
+                print(f"ಸರ್ಚ್ ಎರರ್: {e}", flush=True)
+                continue
 
-    print("IMDb ನಿಂದ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಹೊಸ ಕನ್ನಡ ಸಿನಿಮಾ & ಟ್ರೈಲರ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ...", flush=True)
-    for search_url in IMDB_SEARCH_URLS:
-        try:
-            r = requests.get(search_url, headers=HEADERS, timeout=20)
-            ids = list(dict.fromkeys(re.findall(r"/title/(tt\d{7,10})/", r.text)))
-            for tid in ids[:15]:
-                if tid in history_list:
+            for entry in info.get("entries", []):
+                vid_id = entry.get("id")
+                title = entry.get("title") or ""
+                title_lower = title.lower()
+                duration = entry.get("duration") or 0
+                view_count = entry.get("view_count") or 0
+                
+                if not vid_id or vid_id in history_list:
                     continue
-                info = get_imdb_movie_details(tid)
-                if info and info.get("trailer_url"):
-                    print(f"ಟ್ರೈಲರ್ ಇರುವ ಸಿನಿಮಾ ಸಿಕ್ಕಿದೆ: {info['title']} ({tid})", flush=True)
-                    return info
-        except Exception as e:
-            print(f"IMDb ಸರ್ಚ್ ಎರರ್: {e}", flush=True)
-            continue
-    return None
+                if not (60 <= duration <= 360):
+                    continue
+                if any(bad in title_lower for bad in IGNORE_WORDS):
+                    continue
+                if not any(req in title_lower for req in REQUIRED_WORDS):
+                    continue
+
+                is_kannada_query = ("kannada" in query.lower() or "ಕನ್ನಡ" in query)
+                if "ott" in title_lower or "week" in title_lower or "ರಿಲೀಸ್" in title_lower:
+                    min_views = 1000 if is_kannada_query else 3000
+                else:
+                    min_views = 5000 if is_kannada_query else 15000
+
+                if view_count > 0 and view_count < min_views:
+                    continue
+
+                return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
+    return None, None, None
 
 def get_available_text_models(client):
     models = ["gemini-3.1-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
@@ -169,19 +151,20 @@ def get_available_text_models(client):
         pass
     return models
 
-def generate_script_and_seo(movie_info):
+def generate_script_and_seo(title, url):
+    """Gemini API ಬಳಸಿ MK CINEVIEW ಕನ್ನಡ ಶೈಲಿಯ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಪ್ರಾಂಪ್ಟ್ ತಯಾರಿಸುತ್ತದೆ"""
     print("Gemini ಮೂಲಕ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
-ಈ ಕೆಳಗಿನ IMDb ಅಧಿಕೃತ ಸಿನಿಮಾ ವಿವರವನ್ನು ಆಧರಿಸಿ:
-1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಈ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ **ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ (Cast, Director, Story) ಮತ್ತು ಟ್ರೈಲರ್ ವಿಶ್ಲೇಷಣೆ** ಎರಡೂ ಸಮಾನವಾಗಿ ಇರಬೇಕು.
+ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ:
+1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಈ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ **ಮೂವಿ ಟ್ರೈಲರ್ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು ಆ ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ** ಎರಡೂ ಸಮಾನವಾಗಿ ಇರಬೇಕು.
 2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು), ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** ಹಾಗೂ **BOTTOM_TEXT**, ಮತ್ತು Free Image AI (Flux) ಗಾಗಿ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಸಿನಿಮ್ಯಾಟಿಕ್ **thumbnail_image_prompt** ಕೊಡು.
 
-IMDb ಸಿನಿಮಾ ವಿವರ:
-{movie_info['details']}
-IMDb URL: {movie_info['url']}
+ವಿಡಿಯೋ ವಿವರ:
+- Title: {title}
+- URL: {url}
 
 ಈ ಕೆಳಗಿನ ನಿಖರ JSON ಫಾರ್ಮ್ಯಾಟ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉತ್ತರ ಕೊಡು:
 {{
@@ -195,7 +178,7 @@ IMDb URL: {movie_info['url']}
   ],
   "seo_description": "YouTube ವಿಡಿಯೋಗಾಗಿ 4-5 ಸಾಲುಗಳ SEO ಡಿಸ್ಕ್ರಿಪ್ಶನ್ ಮತ್ತು ಹ್ಯಾಶ್‌ಟ್ಯಾಗ್‌ಗಳು (#KannadaMovies #MKCineviewKannada ಇತ್ಯಾದಿ)",
   "seo_tags": "ಕಾಮಾ (,) ಹಾಕಿ ಬೇರ್ಪಡಿಸಿದ 15 YouTube SEO ಟ್ಯಾಗ್‌ಗಳು",
-  "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಸ್ಕ್ರಿಪ್ಟ್ ವಿಭಾಗಗಳು ಈ ರೀತಿ ಇರಲಿ: 1) ಮೊದಲ 60 ಪದಗಳು ಸಿನಿಮಾ ಮತ್ತು ಟ್ರೈಲರ್ ಕುರಿತ ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ (ಸುಮಾರು 250 ಪದಗಳು): IMDb ನಲ್ಲಿರುವ ನಿಖರವಾದ ನಿರ್ದೇಶಕರು, ತಾರಾಗಣ (Cast), ಜಾನರ್ (Genre) ಮತ್ತು ಸಿನಿಮಾದ ಕಥಾಹಂದರವನ್ನು ವಿವರಿಸು. 3) ಟ್ರೈಲರ್ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 300 ಪದಗಳು): ಟ್ರೈಲರ್‌ನ ಪ್ರಮುಖ ದೃಶ್ಯಗಳು, ಹೀರೋ ಎಂಟ್ರಿ, ಆಕ್ಷನ್/ಡ್ರಾಮಾ, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography) ಮತ್ತು ಸೀಕ್ರೆಟ್ ಅಂಶಗಳನ್ನು ವಿಶ್ಲೇಷಿಸು. 4) ಸಿನಿಮಾ ರಿಲೀಸ್ ನಿರೀಕ್ಷೆ ಮತ್ತು ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 150 ಪದಗಳು): ಪ್ರೇಕ್ಷಕರಲ್ಲಿರುವ ಕ್ರೇಜ್ ಹೇಗಿದೆ ಎಂಬುದನ್ನು ಹೇಳಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ವೀಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 5) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Movie, Release, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 6) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
+  "script": "ಇಲ್ಲಿ 750 ರಿಂದ 900 ಪದಗಳ ಪೂರ್ತಿ 4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಸ್ಕ್ರಿಪ್ಟ್ ವಿಭಾಗಗಳು ಈ ರೀತಿ ಇರಲಿ: 1) ಮೊದಲ 60 ಪದಗಳು ಸಿನಿಮಾ ಮತ್ತು ಟ್ರೈಲರ್ ಕುರಿತ ಪವರ್‌ಫುಲ್ ಹುಕ್ ಆಗಿರಲಿ, ನಂತರ 'ನಮಸ್ಕಾರ ಸಿನಿಮಾ ಪ್ರಿಯರೇ, MK CINEVIEW ಕನ್ನಡ ಚಾನೆಲ್‌ಗೆ ಸ್ವಾಗತ' ಇರಲಿ. 2) ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ (ಸುಮಾರು 250 ಪದಗಳು): ಸಿನಿಮಾ ಯಾವ ಜಾನರ್ (Genre), ನಿರ್ದೇಶಕರು ಮತ್ತು ನಿರ್ಮಾಣ ಸಂಸ್ಥೆ ಯಾರು, ಸಂಗೀತ ನಿರ್ದೇಶಕರು, ಪೂರ್ತಿ ತಾರಾಗಣ (Cast), ಸಿನಿಮಾದ ಕಥಾಹಂದರ ಮತ್ತು ಶೂಟಿಂಗ್ ವಿಶೇಷತೆಗಳನ್ನು ವಿವರಿಸು. 3) ಟ್ರೈಲರ್ ಆಳವಾದ ವಿಶ್ಲೇಷಣೆ (ಸುಮಾರು 300 ಪದಗಳು): ಟ್ರೈಲರ್ ಆರಂಭದಿಂದ ಅಂತ್ಯದವರೆಗಿನ ಪ್ರಮುಖ ದೃಶ್ಯಗಳು, ಹೀರೋ ಎಂಟ್ರಿ, ಆಕ್ಷನ್/ಡ್ರಾಮಾ, ಡೈಲಾಗ್‌ಗಳು, BGM, ಕ್ಯಾಮೆರಾ ವರ್ಕ್ (Cinematography) ಮತ್ತು ಟ್ರೈಲರ್‌ನಲ್ಲಿ ಅಡಗಿರುವ ಸೀಕ್ರೆಟ್ ಅಂಶಗಳನ್ನು ವಿಶ್ಲೇಷಿಸು. 4) ಸಿನಿಮಾ ರಿಲೀಸ್ ಡೇಟ್, OTT/ಥಿಯೇಟರ್ ನಿರೀಕ್ಷೆ ಮತ್ತು ಕ್ಲೋಸಿಂಗ್ (ಸುಮಾರು 150 ಪದಗಳು): ಸಿನಿಮಾ ಯಾವಾಗ ರಿಲೀಸ್ ಆಗುತ್ತಿದೆ, ಪ್ರೇಕ್ಷಕರಲ್ಲಿರುವ ಕ್ರೇಜ್ ಹೇಗಿದೆ ಎಂಬುದನ್ನು ಹೇಳಿ, ಕೊನೆಯಲ್ಲಿ ಮಾತ್ರ ವೀಕ್ಷಕರ ಅಭಿಪ್ರಾಯ ಕೇಳುವ ಒಂದು ಪ್ರಶ್ನೆ ಮತ್ತು Subscribe Call to Action ಇರಲಿ. 5) ಇಂಗ್ಲಿಷ್ ಸಿನಿಮಾ ಪದಗಳನ್ನು (Trailer, Teaser, Movie, Release, OTT, Box office, BGM, Cinematography, Prime Video, Netflix, Zee5, JioHotstar, Subscribe) ಇಂಗ್ಲಿಷ್ ಲಿಪಿಯಲ್ಲೇ ಬರೆ. 6) ಯಾವುದೇ ಸ್ಟಾರ್ (*, #) ಅಥವಾ ಎಮೋಜಿ ಬಳಸಬೇಡ."
 }}
 """
     for model_name in get_available_text_models(client):
@@ -212,9 +195,9 @@ IMDb URL: {movie_info['url']}
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
-def create_both_thumbnails(poster_url: str, image_prompt: str, top_text: str, bottom_text: str):
-    """Free Pollinations AI (Flux) ಅಥವಾ IMDb HD ಪೋಸ್ಟರ್ ಬಳಸಿ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
-    print("100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str, bottom_text: str):
+    """100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
+    print("100% Free Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
     clean_img = None
 
     try:
@@ -225,17 +208,16 @@ def create_both_thumbnails(poster_url: str, image_prompt: str, top_text: str, bo
         r = requests.get(poll_url, timeout=45)
         if r.status_code == 200 and len(r.content) > 15000:
             clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
-            print("Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
+            print("Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
     except Exception as e:
         print(f"Pollinations AI ಎಚ್ಚರಿಕೆ: {e}", flush=True)
 
-    if clean_img is None and poster_url:
-        try:
-            r = requests.get(poster_url, timeout=15)
+    if clean_img is None:
+        for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
+            r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
             if r.status_code == 200 and len(r.content) > 5000:
                 clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
-        except Exception:
-            pass
+                break
 
     if clean_img is None:
         return None, None
@@ -276,84 +258,8 @@ def create_both_thumbnails(poster_url: str, image_prompt: str, top_text: str, bo
 
     final_thumb_path = "readymade_thumbnail.jpg"
     ready_img.save(final_thumb_path, "JPEG", quality=95)
+    print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
-
-def extract_16_hd_frames_from_imdb(trailer_url: str, target_count: int = 16) -> list[str]:
-    """IMDb ಟ್ರೈಲರ್ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ"""
-    if not trailer_url:
-        return []
-
-    print(f"IMDb ಟ್ರೈಲರ್ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ: {trailer_url}", flush=True)
-    video_file = "imdb_trailer.mp4"
-    dl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "outtmpl": video_file,
-        "format": "best[height<=1080][ext=mp4]/best[ext=mp4]/best",
-        "http_headers": HEADERS
-    }
-    try:
-        with yt_dlp.YoutubeDL(dl_opts) as ydl:
-            ydl.extract_info(trailer_url, download=True)
-    except Exception as e:
-        print(f"IMDb ಟ್ರೈಲರ್ ಡೌನ್‌ಲೋಡ್ ಎರರ್: {e}", flush=True)
-        return []
-
-    if not os.path.exists(video_file) or os.path.getsize(video_file) < 150000:
-        return []
-
-    print("IMDb ಟ್ರೈಲರ್ ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ! 16 HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗುತ್ತಿದೆ...", flush=True)
-    try:
-        dur_res = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_file],
-            capture_output=True, text=True, check=True
-        )
-        duration = float(dur_res.stdout.strip())
-    except Exception:
-        duration = 120.0
-
-    start_sec = max(3.0, duration * 0.06)
-    end_sec = max(start_sec + 10.0, duration * 0.90)
-    usable_dur = end_sec - start_sec
-    sample_count = 32
-    step = usable_dur / sample_count
-
-    scored_frames = []
-    for i in range(sample_count):
-        ts = start_sec + (i * step)
-        raw_path = f"raw_frame_{i:02d}.jpg"
-        try:
-            subprocess.run(
-                [
-                    "ffmpeg", "-y", "-ss", f"{ts:.2f}", "-i", video_file,
-                    "-frames:v", "1", "-q:v", "1",
-                    "-vf", "scale=1280:720:flags=lanczos",
-                    raw_path, "-hide_banner", "-loglevel", "error"
-                ],
-                timeout=15,
-                check=True
-            )
-            if os.path.exists(raw_path):
-                img = Image.open(raw_path).convert("L")
-                brightness = ImageStat.Stat(img).mean[0]
-                if brightness < 25 or brightness > 235:
-                    continue
-                sharpness = ImageStat.Stat(img.filter(ImageFilter.FIND_EDGES)).stddev[0]
-                scored_frames.append((sharpness, i, raw_path))
-        except Exception:
-            continue
-
-    final_frames = []
-    if scored_frames:
-        scored_frames.sort(key=lambda x: x[0], reverse=True)
-        top_frames = sorted(scored_frames[:target_count], key=lambda x: x[1])
-        for idx, (_, _, path) in enumerate(top_frames, start=1):
-            clean_name = f"hd_scene_{idx:02d}.jpg"
-            os.replace(path, clean_name)
-            final_frames.append(clean_name)
-        print(f"IMDb ಟ್ರೈಲರ್‌ನಿಂದ {len(final_frames)} ಅತ್ಯುತ್ತಮ HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
-
-    return final_frames
 
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
@@ -478,33 +384,31 @@ def generate_algenib_voice(script_text: str):
 def main():
     state = load_state()
     history = state.get("videos", [])
-    custom_imdb_id, custom_topic = check_telegram_command(state)
+    custom_topic = check_telegram_topic_command(state)
     
-    movie_info = auto_find_imdb_movie(history, custom_imdb_id=custom_imdb_id, custom_topic=custom_topic)
-    if not movie_info:
-        print("ಹೊಸ IMDb ಸಿನಿಮಾ ಸಿಗಲಿಲ್ಲ.", flush=True)
+    url, vid_id, search_title = search_video(history, custom_topic=custom_topic)
+    if not url:
+        print("ಹೊಸ ವಿಡಿಯೋ ಸಿಗಲಿಲ್ಲ.", flush=True)
         save_state(state)
         return
 
-    imdb_id = movie_info["imdb_id"]
-    movie_title = movie_info["title"]
-    imdb_url = movie_info["url"]
+    print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
     # 1. Gemini ಮೂಲಕ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಟೆಕ್ಸ್ಟ್ ಜನರೇಟ್ ಮಾಡುವುದು
-    content_data = generate_script_and_seo(movie_info)
+    content_data = generate_script_and_seo(search_title, url)
     top_txt = content_data.get("top_text", "ಟ್ರೈಲರ್ ಧಮಾಕಾ!")
     bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
-    img_prompt = content_data.get("thumbnail_image_prompt", f"Cinematic South Indian movie scene for {movie_title}, dramatic lighting, 8k, no text")
+    img_prompt = content_data.get("thumbnail_image_prompt", f"Cinematic South Indian movie scene for {search_title}, dramatic lighting, 8k, no text")
     script_text = content_data.get("script", "")
 
     # 2. Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುವುದು
-    clean_path, thumb_path = create_both_thumbnails(movie_info.get("poster_url"), img_prompt, top_txt, bottom_txt)
+    clean_path, thumb_path = create_both_thumbnails_free_ai(vid_id, img_prompt, top_txt, bottom_txt)
 
     if clean_path and os.path.exists(clean_path):
         clean_caption = (
-            f"🎬 <b>{movie_title}</b>\n"
-            f"🔗 <b>IMDb Link:</b> {imdb_url}\n\n"
+            f"🎬 <b>{search_title}</b>\n"
+            f"🔗 <b>YouTube Link:</b> {url}\n\n"
             f"🖼️ <b>1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ (Free AI Clean Photo)</b>"
         )
         with open(clean_path, "rb") as cf:
@@ -527,35 +431,12 @@ def main():
                 data={"chat_id": CHAT_ID, "caption": ready_caption, "parse_mode": "HTML"},
                 files={"photo": tf}
             )
+    else:
+        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": ready_caption, "parse_mode": "HTML"})
 
     time.sleep(2)
 
-    # 3. IMDb ಟ್ರೈಲರ್ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು
-    hd_frames = extract_16_hd_frames_from_imdb(movie_info.get("trailer_url"), target_count=16)
-    if hd_frames:
-        for batch_idx in range(0, len(hd_frames), 8):
-            batch = hd_frames[batch_idx:batch_idx + 8]
-            media_group = []
-            files_dict = {}
-            for idx, fpath in enumerate(batch):
-                attach_key = f"photo_{idx}"
-                item = {"type": "photo", "media": f"attach://{attach_key}"}
-                if idx == 0:
-                    item["caption"] = f"📸 <b>IMDb ಟ್ರೈಲರ್‌ನಿಂದ ಕಟ್ ಮಾಡಿದ HD ಫೋಟೋಗಳು (ಭಾಗ {batch_idx//8 + 1})</b>"
-                    item["parse_mode"] = "HTML"
-                media_group.append(item)
-                files_dict[attach_key] = open(fpath, "rb")
-
-            requests.post(
-                f"{base_url}/sendMediaGroup",
-                data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
-                files=files_dict
-            )
-            for fobj in files_dict.values():
-                fobj.close()
-            time.sleep(2)
-
-    # 4. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
+    # 3. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
     seo_msg = (
         f"🚀 <b>YouTube SEO ಪ್ಯಾಕೇಜ್ (MK CINEVIEW ಕನ್ನಡ):</b>\n\n"
@@ -567,8 +448,8 @@ def main():
 
     time.sleep(2)
 
-    # 5. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
-    header = "🎙️ <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (IMDb ಸಿನಿಮಾ & ಟ್ರೈಲರ್):</b>\n\n"
+    # 4. 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಕಳುಹಿಸುವುದು
+    header = "🎙️ <b>4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ AI ಸ್ಕ್ರಿಪ್ಟ್ (ಸಿನಿಮಾ & ಟ್ರೈಲರ್):</b>\n\n"
     full_msg = header + script_text
     for i in range(0, len(full_msg), 4000):
         requests.post(
@@ -577,7 +458,7 @@ def main():
         )
         time.sleep(1)
 
-    # 6. Gemini ಮೂಲಕ ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
+    # 5. Gemini ಮೂಲಕ ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
@@ -585,15 +466,15 @@ def main():
                 f"{base_url}/sendAudio",
                 data={
                     "chat_id": CHAT_ID,
-                    "title": f"{movie_title[:40]} - Algenib Voice",
+                    "title": f"{search_title[:40]} - Algenib Voice",
                     "performer": "MK CINEVIEW ಕನ್ನಡ"
                 },
                 files={"audio": af}
             )
         print("Algenib ವಾಯ್ಸ್ MP3 ಫೈಲ್ Telegram ಗೆ ಕಳುಹಿಸಲಾಗಿದೆ!", flush=True)
 
-    if imdb_id not in history:
-        history.append(imdb_id)
+    if vid_id not in history:
+        history.append(vid_id)
     state["videos"] = history
     save_state(state)
     print("ಯಶಸ್ವಿಯಾಗಿ ಎಲ್ಲಾ ಕೆಲಸ ಪೂರ್ಣಗೊಂಡಿದೆ!", flush=True)
