@@ -1,4 +1,4 @@
-name: MK Helper Bot (Thumbnail, SEO, Script & Algenib Voice)
+name: MK Helper Bot (16 HD Scenes, Thumbnails, SEO, Script & Algenib Voice)
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ jobs:
 
       - name: Save History to Repo
         run: |
-          rm -f *.wav *.mp3 *.jpg *.png concat_list.txt
+          rm -f *.wav *.mp3 *.mp4 *.jpg *.png concat_list.txt
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add helper_history.json
