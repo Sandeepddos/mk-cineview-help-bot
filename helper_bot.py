@@ -153,14 +153,15 @@ def get_available_text_models(client):
     return models
 
 def generate_script_and_seo(title, url):
-    print("4-6 ನಿಮಿಷದ ಪ್ರೊಫೆಷನಲ್ ಸ್ಕ್ರಿಪ್ಟ್ (ಮೂವಿ & ಟ್ರೈಲರ್) ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
+    """Gemini API ಬಳಸಿ MK CINEVIEW ಕನ್ನಡ ಶೈಲಿಯ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಪ್ರಾಂಪ್ಟ್ ತಯಾರಿಸುತ್ತದೆ"""
+    print("Gemini ಮೂಲಕ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = f"""
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
 ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ:
 1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಈ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ **ಮೂವಿ ಟ್ರೈಲರ್ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು ಆ ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ** ಎರಡೂ ಸಮಾನವಾಗಿ ಇರಬೇಕು.
-2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು) ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** (ಮೇಲ್ಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕ್ಯೂರಿಯಾಸಿಟಿ ಟೆಕ್ಸ್ಟ್) ಹಾಗೂ **BOTTOM_TEXT** (ಕೆಳಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್) ಕೊಡು.
+2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು), ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** ಹಾಗೂ **BOTTOM_TEXT**, ಮತ್ತು ಬೇರೆ Image AI (Flux) ಗಾಗಿ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಒಂದು ಸಿನಿಮ್ಯಾಟಿಕ್ **thumbnail_image_prompt** ಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
@@ -170,6 +171,7 @@ def generate_script_and_seo(title, url):
 {{
   "top_text": "ಥಂಬ್‌ನೇಲ್ ಮೇಲ್ಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಟ್ರೈಲರ್ ಧಮಾಕಾ!)",
   "bottom_text": "ಥಂಬ್‌ನೇಲ್ ಕೆಳಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!)",
+  "thumbnail_image_prompt": "A dramatic high-budget South Indian Kannada cinema poster scene matching this movie theme, intense action lighting, rich cinematic colors, 8k resolution, photorealistic, strictly no text, no letters, no watermark",
   "seo_titles": [
     "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 1",
     "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 2",
@@ -194,47 +196,40 @@ def generate_script_and_seo(title, url):
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
-def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
-    print("ಒರಿಜಿನಲ್ ಥಂಬ್‌ನೇಲ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಅಕ್ಷರಗಳನ್ನು ತೆಗೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
-    img_bytes = None
-    for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
-        r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
-        if r.status_code == 200 and len(r.content) > 5000:
-            img_bytes = r.content
-            break
+def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str, bottom_text: str):
+    """Gemini ಕೋಟಾ ಬಳಸದೆ 100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
+    print("100% Free Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+    clean_img = None
 
-    if not img_bytes:
-        return None, None
-
-    clean_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-
+    # ಹಂತ 1: Pollinations.ai (Flux ಮಾಡೆಲ್ - ಯಾವುದೇ API Key ಬೇಕಾಗಿಲ್ಲ) ಮೂಲಕ HD ಥಂಬ್‌ನೇಲ್ ಫೋಟೋ ಪಡೆಯುವುದು
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        edit_prompt = (
-            "Remove all text, titles, movie logos, watermarks, dates, and typography from this image completely. "
-            "Keep the actors, faces, background scene, colors, and lighting 100% identical and natural, "
-            "leaving a clean text-free cinematic image."
-        )
-        res = client.models.generate_content(
-            model="gemini-2.5-flash-image",
-            contents=[
-                types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
-                edit_prompt
-            ],
-            config=types.GenerateContentConfig(response_modalities=["IMAGE"])
-        )
-        for part in res.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.data:
-                clean_img = Image.open(io.BytesIO(part.inline_data.data)).convert("RGB")
-                print("ಒರಿಜಿನಲ್ ಫೋಟೋದ ಎಲ್ಲಾ ಅಕ್ಷರಗಳನ್ನು ಯಶಸ್ವಿಯಾಗಿ ತೆಗೆಯಲಾಗಿದೆ!", flush=True)
-                break
+        full_prompt = f"{image_prompt}, 16:9 widescreen cinematic movie still, ultra detailed, no text, no letters, no watermark"
+        encoded_prompt = urllib.parse.quote(full_prompt)
+        seed = int(time.time()) % 100000
+        poll_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&model=flux&nologo=true&seed={seed}"
+        r = requests.get(poll_url, timeout=45)
+        if r.status_code == 200 and len(r.content) > 15000:
+            clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
+            print("Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
     except Exception as e:
-        print(f"AI ಇಮೇಜ್ ಕ್ಲೀನ್ ಎಚ್ಚರಿಕೆ: {e}", flush=True)
+        print(f"Pollinations AI ಎಚ್ಚರಿಕೆ (YouTube HD ಬ್ಯಾಕಪ್ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
+
+    # ಹಂತ 2 (ಬ್ಯಾಕಪ್): Pollinations ಬ್ಯುಸಿ ಇದ್ದರೆ YouTube ನ ಒರಿಜಿನಲ್ HD ಫೋಟೋ ತೆಗೆದುಕೊಳ್ಳುವುದು
+    if clean_img is None:
+        for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
+            r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
+            if r.status_code == 200 and len(r.content) > 5000:
+                clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
+                break
+
+    if clean_img is None:
+        return None, None
 
     clean_img = clean_img.resize((1280, 720), Image.Resampling.LANCZOS)
     clean_photo_path = "clean_photo.jpg"
     clean_img.save(clean_photo_path, "JPEG", quality=95)
 
+    # ಹಂತ 3: ಖಾಲಿ HD ಫೋಟೋ ಮೇಲೆ Top & Bottom ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕಿ ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುವುದು
     ready_img = clean_img.copy()
     draw = ImageDraw.Draw(ready_img, "RGBA")
     draw.rectangle([(0, 0), (1280, 115)], fill=(0, 0, 0, 195))
@@ -283,10 +278,9 @@ def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
                     if not api_u.startswith("http"):
                         api_u = f"https://{api_u}"
                     cobalt_urls.append(api_u.rstrip("/"))
-    except Exception as e:
-        print(f"Cobalt instance ಪಟ್ಟಿ ಪಡೆಯುವಲ್ಲಿ ಎಚ್ಚರಿಕೆ: {e}", flush=True)
+    except Exception:
+        pass
 
-    # ಬ್ಯಾಕಪ್ ಪಬ್ಲಿಕ್ Cobalt API ಲಿಂಕ್‌ಗಳು
     for fallback in ["https://cobalt-api.kwiatekmiki.com", "https://cobalt-backend.canine.tools", "https://api.cobalt.tools"]:
         if fallback not in cobalt_urls:
             cobalt_urls.append(fallback)
@@ -311,7 +305,6 @@ def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
             data = r.json()
             dl_link = data.get("url")
             if dl_link:
-                print(f"Cobalt API ಲಿಂಕ್ ಸಿಕ್ಕಿದೆ ({api_base}), MP4 ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ...", flush=True)
                 with requests.get(dl_link, stream=True, timeout=60) as vid_r:
                     if vid_r.status_code == 200:
                         with open(output_file, "wb") as vf:
@@ -326,11 +319,10 @@ def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
     return False
 
 def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) -> list[str]:
-    """Cobalt API + FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ (Gemini ಕೋಟಾ ಖರ್ಚಾಗುವುದಿಲ್ಲ)"""
+    """Cobalt API + FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ"""
     video_file = "temp_trailer.mp4"
     downloaded = download_via_cobalt(youtube_url, video_file)
 
-    # Cobalt ವಿಫಲವಾದರೆ ಮಾತ್ರ yt-dlp ಪ್ರಯತ್ನಿಸುವುದು
     if not downloaded:
         for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
             dl_opts = {
@@ -351,7 +343,6 @@ def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) 
 
     final_frames = []
     if downloaded and os.path.exists(video_file):
-        # ವಿಡಿಯೋದ ಒಟ್ಟು ಉದ್ದವನ್ನು ffprobe ನಿಂದ ಪಡೆಯುವುದು
         try:
             dur_res = subprocess.run(
                 ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_file],
@@ -402,7 +393,6 @@ def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) 
             print(f"ವಿಡಿಯೋದಿಂದ {len(final_frames)} ಅತ್ಯುತ್ತಮ HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
             return final_frames
 
-    # ಬ್ಯಾಕಪ್: YouTube ನ ಒರಿಜಿನಲ್ 4 HD ಫ್ರೇಮ್‌ಗಳು
     for yt_thumb in ["maxresdefault.jpg", "hq1.jpg", "hq2.jpg", "hq3.jpg"]:
         try:
             r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{yt_thumb}", timeout=10)
@@ -464,7 +454,7 @@ def get_audio_duration(file_path: str) -> float:
         return 0.0
 
 def generate_algenib_voice(script_text: str):
-    """ಆಡಿಯೋ ಕತ್ತರಿಸದೆ ಒಂದೇ ಬಾರಿಗೆ temperature=0.45 ನಲ್ಲಿ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಮಾಡುತ್ತದೆ"""
+    """Gemini API ಬಳಸಿ ಒಂದೇ ಬಾರಿಗೆ temperature=0.45 ನಲ್ಲಿ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಮಾಡುತ್ತದೆ"""
     client = genai.Client(
         api_key=GEMINI_API_KEY,
         http_options=types.HttpOptions(api_version="v1beta"),
@@ -482,7 +472,7 @@ def generate_algenib_voice(script_text: str):
     best_dur = 0.0
 
     for attempt, temp in enumerate(temps, start=1):
-        print(f"ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ (ಪ್ರಯತ್ನ {attempt}/2, temperature={temp})...", flush=True)
+        print(f"Gemini ಮೂಲಕ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಆಗುತ್ತಿದೆ (ಪ್ರಯತ್ನ {attempt}/2, temperature={temp})...", flush=True)
         config = types.GenerateContentConfig(
             temperature=temp,
             response_modalities=["audio"],
@@ -554,18 +544,17 @@ def main():
     content_data = generate_script_and_seo(search_title, url)
     top_txt = content_data.get("top_text", "ಟ್ರೈಲರ್ ಧಮಾಕಾ!")
     bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
+    img_prompt = content_data.get("thumbnail_image_prompt", f"Cinematic South Indian movie scene for {search_title}, dramatic lighting, 8k, no text")
     script_text = content_data.get("script", "")
 
-    time.sleep(3)
-
-    # 2. Gemini ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಕಳುಹಿಸುವುದು
-    clean_path, thumb_path = create_both_thumbnails(vid_id, top_txt, bottom_txt)
+    # 2. Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುವುದು (Gemini ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
+    clean_path, thumb_path = create_both_thumbnails_free_ai(vid_id, img_prompt, top_txt, bottom_txt)
 
     if clean_path and os.path.exists(clean_path):
         clean_caption = (
             f"🎬 <b>{search_title}</b>\n"
             f"🔗 <b>YouTube Link:</b> {url}\n\n"
-            f"🖼️ <b>1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ (Clean Photo)</b>"
+            f"🖼️ <b>1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ (Free AI Clean Photo)</b>"
         )
         with open(clean_path, "rb") as cf:
             requests.post(
@@ -592,7 +581,7 @@ def main():
 
     time.sleep(2)
 
-    # 3. Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು (Gemini ಕೋಟಾ ಖರ್ಚಾಗುವುದಿಲ್ಲ)
+    # 3. Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು
     hd_frames = extract_16_hd_frames(url, vid_id, target_count=16)
     if hd_frames:
         for batch_idx in range(0, len(hd_frames), 8):
