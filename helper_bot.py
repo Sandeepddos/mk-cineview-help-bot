@@ -7,6 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
+from pytubefix import YouTube
 from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
 from google import genai
 from google.genai import types
@@ -197,11 +198,10 @@ def generate_script_and_seo(title, url):
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
 
 def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str, bottom_text: str):
-    """Gemini ಕೋಟಾ ಬಳಸದೆ 100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
+    """100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
     print("100% Free Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
     clean_img = None
 
-    # ಹಂತ 1: Pollinations.ai (Flux ಮಾಡೆಲ್ - ಯಾವುದೇ API Key ಬೇಕಾಗಿಲ್ಲ) ಮೂಲಕ HD ಥಂಬ್‌ನೇಲ್ ಫೋಟೋ ಪಡೆಯುವುದು
     try:
         full_prompt = f"{image_prompt}, 16:9 widescreen cinematic movie still, ultra detailed, no text, no letters, no watermark"
         encoded_prompt = urllib.parse.quote(full_prompt)
@@ -214,7 +214,6 @@ def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str
     except Exception as e:
         print(f"Pollinations AI ಎಚ್ಚರಿಕೆ (YouTube HD ಬ್ಯಾಕಪ್ ಬಳಸಲಾಗುತ್ತಿದೆ): {e}", flush=True)
 
-    # ಹಂತ 2 (ಬ್ಯಾಕಪ್): Pollinations ಬ್ಯುಸಿ ಇದ್ದರೆ YouTube ನ ಒರಿಜಿನಲ್ HD ಫೋಟೋ ತೆಗೆದುಕೊಳ್ಳುವುದು
     if clean_img is None:
         for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
             r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
@@ -229,7 +228,6 @@ def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str
     clean_photo_path = "clean_photo.jpg"
     clean_img.save(clean_photo_path, "JPEG", quality=95)
 
-    # ಹಂತ 3: ಖಾಲಿ HD ಫೋಟೋ ಮೇಲೆ Top & Bottom ಕನ್ನಡ ಟೆಕ್ಸ್ಟ್ ಹಾಕಿ ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುವುದು
     ready_img = clean_img.copy()
     draw = ImageDraw.Draw(ready_img, "RGBA")
     draw.rectangle([(0, 0), (1280, 115)], fill=(0, 0, 0, 195))
@@ -264,6 +262,32 @@ def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str
     ready_img.save(final_thumb_path, "JPEG", quality=95)
     print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
+
+def download_via_pytubefix(youtube_url: str, output_file: str) -> bool:
+    """pytubefix ಬಳಸಿ ವಿವಿಧ ಕ್ಲೈಂಟ್‌ಗಳ ಮೂಲಕ MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
+    print("pytubefix ಮೂಲಕ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+    for client_type in ["ANDROID_VR", "IOS", "WEB_CREATOR", "ANDROID", "WEB"]:
+        try:
+            if os.path.exists(output_file):
+                os.remove(output_file)
+            yt = YouTube(youtube_url, client=client_type)
+            # ಮೊದಲು 720p ಅಥವಾ ಲಭ್ಯವಿರುವ ಅತ್ಯುತ್ತಮ progressive MP4 ಹುಡುಕುವುದು
+            stream = (
+                yt.streams.filter(progressive=True, file_extension="mp4", resolution="720p").first()
+                or yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
+                or yt.streams.filter(file_extension="mp4", resolution="1080p").first()
+                or yt.streams.filter(file_extension="mp4", resolution="720p").first()
+                or yt.streams.filter(file_extension="mp4").first()
+            )
+            if stream:
+                stream.download(filename=output_file)
+                if os.path.exists(output_file) and os.path.getsize(output_file) > 150000:
+                    print(f"pytubefix ({client_type}) ಮೂಲಕ MP4 ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!", flush=True)
+                    return True
+        except Exception as e:
+            print(f"pytubefix ({client_type}) ಸ್ಕಿಪ್: {e}", flush=True)
+            continue
+    return False
 
 def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
     """ಉಚಿತ Cobalt API ಸರ್ವರ್‌ಗಳ ಮೂಲಕ YouTube IP ಬ್ಲಾಕ್ ತಪ್ಪಿಸಿ MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
@@ -319,9 +343,12 @@ def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
     return False
 
 def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) -> list[str]:
-    """Cobalt API + FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ"""
+    """pytubefix + Cobalt API + yt-dlp ಮತ್ತು FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ"""
     video_file = "temp_trailer.mp4"
-    downloaded = download_via_cobalt(youtube_url, video_file)
+    downloaded = download_via_pytubefix(youtube_url, video_file)
+
+    if not downloaded:
+        downloaded = download_via_cobalt(youtube_url, video_file)
 
     if not downloaded:
         for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
@@ -547,7 +574,7 @@ def main():
     img_prompt = content_data.get("thumbnail_image_prompt", f"Cinematic South Indian movie scene for {search_title}, dramatic lighting, 8k, no text")
     script_text = content_data.get("script", "")
 
-    # 2. Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುವುದು (Gemini ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
+    # 2. Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುವುದು
     clean_path, thumb_path = create_both_thumbnails_free_ai(vid_id, img_prompt, top_txt, bottom_txt)
 
     if clean_path and os.path.exists(clean_path):
@@ -581,7 +608,7 @@ def main():
 
     time.sleep(2)
 
-    # 3. Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು
+    # 3. pytubefix + Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು
     hd_frames = extract_16_hd_frames(url, vid_id, target_count=16)
     if hd_frames:
         for batch_idx in range(0, len(hd_frames), 8):
