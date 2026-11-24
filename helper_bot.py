@@ -270,37 +270,101 @@ def create_both_thumbnails(vid_id: str, top_text: str, bottom_text: str):
     print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return clean_photo_path, final_thumb_path
 
-def extract_4_hd_frames(youtube_url: str, vid_id: str) -> list[str]:
-    """ಯಾವುದೇ Gemini API ಕೋಟಾ ಖರ್ಚು ಮಾಡದೆ 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
-    print("ವಿಡಿಯೋದಿಂದ 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ತೆಗೆಯಲಾಗುತ್ತಿದೆ...", flush=True)
-    video_file = "temp_trailer.mp4"
-    duration = 0
+def download_via_cobalt(youtube_url: str, output_file: str) -> bool:
+    """ಉಚಿತ Cobalt API ಸರ್ವರ್‌ಗಳ ಮೂಲಕ YouTube IP ಬ್ಲಾಕ್ ತಪ್ಪಿಸಿ MP4 ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
+    print("ಉಚಿತ Cobalt API ಮೂಲಕ ವಿಡಿಯೋ ಡೌನ್‌ಲೋಡ್ ಪ್ರಯತ್ನಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
+    cobalt_urls = []
+    try:
+        inst_res = requests.get("https://instances.cobalt.best/api/instances.json", timeout=10).json()
+        for item in inst_res:
+            if item.get("online") and item.get("services", {}).get("youtube"):
+                api_u = item.get("api") or item.get("url")
+                if api_u:
+                    if not api_u.startswith("http"):
+                        api_u = f"https://{api_u}"
+                    cobalt_urls.append(api_u.rstrip("/"))
+    except Exception as e:
+        print(f"Cobalt instance ಪಟ್ಟಿ ಪಡೆಯುವಲ್ಲಿ ಎಚ್ಚರಿಕೆ: {e}", flush=True)
 
-    for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
-        if os.path.exists(video_file):
-            os.remove(video_file)
-        dl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "outtmpl": video_file,
-            "format": "best[height<=720][ext=mp4]/best[ext=mp4]/best",
-            "extractor_args": {"youtube": {"player_client": clients}}
-        }
+    # ಬ್ಯಾಕಪ್ ಪಬ್ಲಿಕ್ Cobalt API ಲಿಂಕ್‌ಗಳು
+    for fallback in ["https://cobalt-api.kwiatekmiki.com", "https://cobalt-backend.canine.tools", "https://api.cobalt.tools"]:
+        if fallback not in cobalt_urls:
+            cobalt_urls.append(fallback)
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    payload = {
+        "url": youtube_url,
+        "videoQuality": "720",
+        "youtubeVideoCodec": "h264",
+        "filenameStyle": "basic"
+    }
+
+    for api_base in cobalt_urls[:8]:
         try:
-            with yt_dlp.YoutubeDL(dl_opts) as ydl:
-                info = ydl.extract_info(youtube_url, download=True)
-                duration = info.get("duration") or 120
-            if os.path.exists(video_file) and os.path.getsize(video_file) > 100000:
-                break
+            r = requests.post(f"{api_base}/", json=payload, headers=headers, timeout=15)
+            if r.status_code != 200:
+                continue
+            data = r.json()
+            dl_link = data.get("url")
+            if dl_link:
+                print(f"Cobalt API ಲಿಂಕ್ ಸಿಕ್ಕಿದೆ ({api_base}), MP4 ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ...", flush=True)
+                with requests.get(dl_link, stream=True, timeout=60) as vid_r:
+                    if vid_r.status_code == 200:
+                        with open(output_file, "wb") as vf:
+                            for chunk in vid_r.iter_content(chunk_size=1024 * 256):
+                                if chunk:
+                                    vf.write(chunk)
+                        if os.path.exists(output_file) and os.path.getsize(output_file) > 150000:
+                            print("Cobalt API ಮೂಲಕ MP4 ಯಶಸ್ವಿಯಾಗಿ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ!", flush=True)
+                            return True
         except Exception:
             continue
+    return False
+
+def extract_16_hd_frames(youtube_url: str, vid_id: str, target_count: int = 16) -> list[str]:
+    """Cobalt API + FFmpeg ಮೂಲಕ 16 ಅತ್ಯಂತ ಸ್ಪಷ್ಟ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡುತ್ತದೆ (Gemini ಕೋಟಾ ಖರ್ಚಾಗುವುದಿಲ್ಲ)"""
+    video_file = "temp_trailer.mp4"
+    downloaded = download_via_cobalt(youtube_url, video_file)
+
+    # Cobalt ವಿಫಲವಾದರೆ ಮಾತ್ರ yt-dlp ಪ್ರಯತ್ನಿಸುವುದು
+    if not downloaded:
+        for clients in [["tv_embedded", "mweb"], ["ios", "android"]]:
+            dl_opts = {
+                "quiet": True,
+                "no_warnings": True,
+                "outtmpl": video_file,
+                "format": "best[height<=720][ext=mp4]/best[ext=mp4]/best",
+                "extractor_args": {"youtube": {"player_client": clients}}
+            }
+            try:
+                with yt_dlp.YoutubeDL(dl_opts) as ydl:
+                    ydl.extract_info(youtube_url, download=True)
+                if os.path.exists(video_file) and os.path.getsize(video_file) > 150000:
+                    downloaded = True
+                    break
+            except Exception:
+                continue
 
     final_frames = []
-    if os.path.exists(video_file) and os.path.getsize(video_file) > 100000:
-        start_sec = max(4.0, duration * 0.12)
-        end_sec = max(start_sec + 8.0, duration * 0.85)
+    if downloaded and os.path.exists(video_file):
+        # ವಿಡಿಯೋದ ಒಟ್ಟು ಉದ್ದವನ್ನು ffprobe ನಿಂದ ಪಡೆಯುವುದು
+        try:
+            dur_res = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_file],
+                capture_output=True, text=True, check=True
+            )
+            duration = float(dur_res.stdout.strip())
+        except Exception:
+            duration = 120.0
+
+        start_sec = max(4.0, duration * 0.08)
+        end_sec = max(start_sec + 10.0, duration * 0.88)
         usable_dur = end_sec - start_sec
-        sample_count = 12
+        sample_count = 32
         step = usable_dur / sample_count
 
         scored_frames = []
@@ -330,18 +394,16 @@ def extract_4_hd_frames(youtube_url: str, vid_id: str) -> list[str]:
 
         if scored_frames:
             scored_frames.sort(key=lambda x: x[0], reverse=True)
-            top_4 = sorted(scored_frames[:4], key=lambda x: x[1])
-            for idx, (_, _, path) in enumerate(top_4, start=1):
+            top_frames = sorted(scored_frames[:target_count], key=lambda x: x[1])
+            for idx, (_, _, path) in enumerate(top_frames, start=1):
                 clean_name = f"hd_scene_{idx:02d}.jpg"
                 os.replace(path, clean_name)
                 final_frames.append(clean_name)
-            print(f"ವಿಡಿಯೋದಿಂದ {len(final_frames)} HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
+            print(f"ವಿಡಿಯೋದಿಂದ {len(final_frames)} ಅತ್ಯುತ್ತಮ HD ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಲಾಗಿದೆ!", flush=True)
             return final_frames
 
-    # YouTube ಡೌನ್‌ಲೋಡ್ ಬ್ಲಾಕ್ ಆಗಿದ್ದರೆ YouTube ನ 4 ಒರಿಜಿನಲ್ ಫ್ರೇಮ್‌ಗಳನ್ನು ನೀಡುವುದು (API ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
+    # ಬ್ಯಾಕಪ್: YouTube ನ ಒರಿಜಿನಲ್ 4 HD ಫ್ರೇಮ್‌ಗಳು
     for yt_thumb in ["maxresdefault.jpg", "hq1.jpg", "hq2.jpg", "hq3.jpg"]:
-        if len(final_frames) >= 4:
-            break
         try:
             r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{yt_thumb}", timeout=10)
             if r.status_code == 200 and len(r.content) > 4000:
@@ -352,7 +414,6 @@ def extract_4_hd_frames(youtube_url: str, vid_id: str) -> list[str]:
         except Exception:
             pass
 
-    print(f"ಒಟ್ಟು {len(final_frames)} HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
     return final_frames
 
 def parse_audio_mime_type(mime_type: str) -> dict:
@@ -416,7 +477,6 @@ def generate_algenib_voice(script_text: str):
         ),
     ]
 
-    # ಎಲ್ಲಾ ಪ್ರಯತ್ನಗಳಲ್ಲೂ ಕಡ್ಡಾಯವಾಗಿ temperature=0.45 ಮಾತ್ರ ಬಳಸುತ್ತದೆ (ಗರಿಷ್ಠ 2 ಪ್ರಯತ್ನ — ಫ್ರೀ API ಕೋಟಾ ಉಳಿಯುತ್ತದೆ)
     temps = [0.45, 0.45]
     best_mp3 = None
     best_dur = 0.0
@@ -464,7 +524,6 @@ def generate_algenib_voice(script_text: str):
                     best_dur = dur
                     best_mp3 = mp3_path
 
-                # 120 ಸೆಕೆಂಡ್‌ಗಿಂತ (2 ನಿಮಿಷ) ಹೆಚ್ಚಿದ್ದರೆ ಪೂರ್ತಿ ಆಡಿಯೋ ಬಂದಿದೆ ಅಂತ ಅರ್ಥ
                 if dur >= 120.0:
                     print("ಪೂರ್ತಿ Algenib ಆಡಿಯೋ ಒಂದೇ ಬಾರಿಗೆ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
                     return mp3_path
@@ -491,7 +550,7 @@ def main():
     print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-    # 1. ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಟೆಕ್ಸ್ಟ್ ಜನರೇಟ್ ಮಾಡುವುದು
+    # 1. Gemini ಮೂಲಕ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಟೆಕ್ಸ್ಟ್ ಜನರೇಟ್ ಮಾಡುವುದು
     content_data = generate_script_and_seo(search_title, url)
     top_txt = content_data.get("top_text", "ಟ್ರೈಲರ್ ಧಮಾಕಾ!")
     bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
@@ -499,7 +558,7 @@ def main():
 
     time.sleep(3)
 
-    # 2. ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಕಳುಹಿಸುವುದು
+    # 2. Gemini ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಕಳುಹಿಸುವುದು
     clean_path, thumb_path = create_both_thumbnails(vid_id, top_txt, bottom_txt)
 
     if clean_path and os.path.exists(clean_path):
@@ -533,28 +592,30 @@ def main():
 
     time.sleep(2)
 
-    # 3. 4 ಅತ್ಯುತ್ತಮ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಳುಹಿಸುವುದು
-    hd_frames = extract_4_hd_frames(url, vid_id)
+    # 3. Cobalt API + FFmpeg ಮೂಲಕ 16 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳನ್ನು ಕಟ್ ಮಾಡಿ ಕಳುಹಿಸುವುದು (Gemini ಕೋಟಾ ಖರ್ಚಾಗುವುದಿಲ್ಲ)
+    hd_frames = extract_16_hd_frames(url, vid_id, target_count=16)
     if hd_frames:
-        media_group = []
-        files_dict = {}
-        for idx, fpath in enumerate(hd_frames):
-            attach_key = f"photo_{idx}"
-            item = {"type": "photo", "media": f"attach://{attach_key}"}
-            if idx == 0:
-                item["caption"] = "📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ 4 HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು</b>"
-                item["parse_mode"] = "HTML"
-            media_group.append(item)
-            files_dict[attach_key] = open(fpath, "rb")
+        for batch_idx in range(0, len(hd_frames), 8):
+            batch = hd_frames[batch_idx:batch_idx + 8]
+            media_group = []
+            files_dict = {}
+            for idx, fpath in enumerate(batch):
+                attach_key = f"photo_{idx}"
+                item = {"type": "photo", "media": f"attach://{attach_key}"}
+                if idx == 0:
+                    item["caption"] = f"📸 <b>ಎಡಿಟಿಂಗ್‌ಗಾಗಿ HD ದೃಶ್ಯಗಳ ಫೋಟೋಗಳು (ಭಾಗ {batch_idx//8 + 1})</b>"
+                    item["parse_mode"] = "HTML"
+                media_group.append(item)
+                files_dict[attach_key] = open(fpath, "rb")
 
-        requests.post(
-            f"{base_url}/sendMediaGroup",
-            data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
-            files=files_dict
-        )
-        for fobj in files_dict.values():
-            fobj.close()
-        time.sleep(2)
+            requests.post(
+                f"{base_url}/sendMediaGroup",
+                data={"chat_id": CHAT_ID, "media": json.dumps(media_group)},
+                files=files_dict
+            )
+            for fobj in files_dict.values():
+                fobj.close()
+            time.sleep(2)
 
     # 4. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
@@ -578,7 +639,7 @@ def main():
         )
         time.sleep(1)
 
-    # 6. ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
+    # 6. Gemini ಮೂಲಕ ಒಂದೇ ಬಾರಿಗೆ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ MP3 ಕಳುಹಿಸುವುದು
     mp3_path = generate_algenib_voice(script_text)
     if mp3_path and os.path.exists(mp3_path):
         with open(mp3_path, "rb") as af:
