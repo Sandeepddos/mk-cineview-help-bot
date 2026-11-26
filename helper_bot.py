@@ -7,7 +7,7 @@ import urllib.parse
 import subprocess
 import requests
 import yt_dlp
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from google import genai
 from google.genai import types
 
@@ -36,7 +36,8 @@ SEARCH_QUERIES = [
 
 IGNORE_WORDS = [
     "review", "explained", "ending", "concept", "fan made", "fan-made",
-    "spoof", "reaction", "full movie", "roast", "breakdown", "dubbed"
+    "spoof", "reaction", "full movie", "roast", "breakdown", "dubbed",
+    "ai", "ai generated", "shorts", "short", "status", "edit", "song", "lyrical"
 ]
 
 REQUIRED_WORDS = [
@@ -85,7 +86,7 @@ def search_video(history_list, custom_topic=None):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         if custom_topic:
             print(f"ನಿರ್ದಿಷ್ಟ ಟಾಪಿಕ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ: {custom_topic}", flush=True)
-            encoded_q = urllib.parse.quote(f"{custom_topic} Kannada 2026")
+            encoded_q = urllib.parse.quote(f"{custom_topic} Official Trailer Kannada 2026")
             search_url = f"https://www.youtube.com/results?search_query={encoded_q}"
             info = ydl.extract_info(search_url, download=False)
             for entry in info.get("entries", []):
@@ -115,7 +116,7 @@ def search_video(history_list, custom_topic=None):
                 
                 if not vid_id or vid_id in history_list:
                     continue
-                if not (60 <= duration <= 360):
+                if not (85 <= duration <= 360):
                     continue
                 if any(bad in title_lower for bad in IGNORE_WORDS):
                     continue
@@ -124,15 +125,30 @@ def search_video(history_list, custom_topic=None):
 
                 is_kannada_query = ("kannada" in query.lower() or "ಕನ್ನಡ" in query)
                 if "ott" in title_lower or "week" in title_lower or "ರಿಲೀಸ್" in title_lower:
-                    min_views = 1000 if is_kannada_query else 3000
+                    min_views = 2000 if is_kannada_query else 5000
                 else:
-                    min_views = 5000 if is_kannada_query else 15000
+                    min_views = 10000 if is_kannada_query else 25000
 
                 if view_count > 0 and view_count < min_views:
                     continue
 
                 return f"https://www.youtube.com/watch?v={vid_id}", vid_id, title
     return None, None, None
+
+def get_real_youtube_thumbnail(vid_id: str):
+    """YouTube ನ ಒರಿಜಿನಲ್ HD ಥಂಬ್‌ನೇಲ್ ಫೋಟೋವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡುತ್ತದೆ"""
+    for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
+        try:
+            r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
+            if r.status_code == 200 and len(r.content) > 5000:
+                img = Image.open(io.BytesIO(r.content)).convert("RGB")
+                thumb_path = "real_thumbnail.jpg"
+                img.save(thumb_path, "JPEG", quality=95)
+                print(f"ರಿಯಲ್ YouTube ಥಂಬ್‌ನೇಲ್ ಡೌನ್‌ಲೋಡ್ ಆಗಿದೆ ({quality})", flush=True)
+                return thumb_path
+        except Exception:
+            continue
+    return None
 
 def get_available_text_models(client):
     models = ["gemini-3.1-flash-lite", "gemini-3.1-pro-preview", "gemini-2.5-flash"]
@@ -152,7 +168,6 @@ def get_available_text_models(client):
     return models
 
 def generate_script_and_seo(title, url):
-    """Gemini API ಬಳಸಿ MK CINEVIEW ಕನ್ನಡ ಶೈಲಿಯ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಪ್ರಾಂಪ್ಟ್ ತಯಾರಿಸುತ್ತದೆ"""
     print("Gemini ಮೂಲಕ 4-6 ನಿಮಿಷದ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಸಿದ್ಧವಾಗುತ್ತಿದೆ...", flush=True)
     client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -160,7 +175,7 @@ def generate_script_and_seo(title, url):
 ನೀನು 'MK CINEVIEW ಕನ್ನಡ' ಯೂಟ್ಯೂಬ್ ಚಾನೆಲ್‌ನ ಸೀನಿಯರ್ ಫಿಲ್ಮ್ ಕ್ರಿಟಿಕ್, SEO ಎಕ್ಸ್‌ಪರ್ಟ್ ಮತ್ತು ಸ್ಕ್ರಿಪ್ಟ್ ರೈಟರ್.
 ಈ ಕೆಳಗಿನ ಯೂಟ್ಯೂಬ್ ವಿಡಿಯೋ ವಿಷಯವನ್ನು ಆಧರಿಸಿ:
 1) ಕಡ್ಡಾಯವಾಗಿ **4 ರಿಂದ 6 ನಿಮಿಷ ಓದುವಷ್ಟು (ಕನಿಷ್ಠ 750 ರಿಂದ 900 ಪದಗಳ)** ಪ್ರೊಫೆಷನಲ್ ಕನ್ನಡ ಸ್ಕ್ರಿಪ್ಟ್ ಬರೆ. ಈ ಸ್ಕ್ರಿಪ್ಟ್‌ನಲ್ಲಿ **ಮೂವಿ ಟ್ರೈಲರ್ ವಿಶ್ಲೇಷಣೆ ಮತ್ತು ಆ ಸಿನಿಮಾದ ಸಂಪೂರ್ಣ ವಿವರ** ಎರಡೂ ಸಮಾನವಾಗಿ ಇರಬೇಕು.
-2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು), ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್‌ನ **TOP_TEXT** ಹಾಗೂ **BOTTOM_TEXT**, ಮತ್ತು Free Image AI (Flux) ಗಾಗಿ ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಸಿನಿಮ್ಯಾಟಿಕ್ **thumbnail_image_prompt** ಕೊಡು.
+2) YouTube SEO ಪ್ಯಾಕೇಜ್ (3 ಟೈಟಲ್‌ಗಳು, ಡಿಸ್ಕ್ರಿಪ್ಶನ್, ಟ್ಯಾಗ್‌ಗಳು) ಕೊಡು.
 
 ವಿಡಿಯೋ ವಿವರ:
 - Title: {title}
@@ -168,9 +183,6 @@ def generate_script_and_seo(title, url):
 
 ಈ ಕೆಳಗಿನ ನಿಖರ JSON ಫಾರ್ಮ್ಯಾಟ್‌ನಲ್ಲಿ ಮಾತ್ರ ಉತ್ತರ ಕೊಡು:
 {{
-  "top_text": "ಥಂಬ್‌ನೇಲ್ ಮೇಲ್ಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಟ್ರೈಲರ್ ಧಮಾಕಾ!)",
-  "bottom_text": "ಥಂಬ್‌ನೇಲ್ ಕೆಳಭಾಗಕ್ಕೆ 2-3 ಪದಗಳ ಕನ್ನಡ ಪಂಚ್ ಟೆಕ್ಸ್ಟ್ (ಉದಾ: ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!)",
-  "thumbnail_image_prompt": "A dramatic high-budget South Indian Kannada cinema poster scene matching this movie theme, intense action lighting, rich cinematic colors, 8k resolution, photorealistic, strictly no text, no letters, no watermark",
   "seo_titles": [
     "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 1",
     "ಆಕರ್ಷಕ ಕನ್ನಡ + ಇಂಗ್ಲಿಷ್ YouTube Title 2",
@@ -194,72 +206,6 @@ def generate_script_and_seo(title, url):
             print(f"{model_name} ಸ್ಕಿಪ್ ಆಗಿದೆ: {e}", flush=True)
             continue
     raise RuntimeError("ಯಾವುದೇ Gemini ಮಾಡೆಲ್ ಲಭ್ಯವಾಗಲಿಲ್ಲ.")
-
-def create_both_thumbnails_free_ai(vid_id: str, image_prompt: str, top_text: str, bottom_text: str):
-    """100% Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸುತ್ತದೆ"""
-    print("100% Free Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಥಂಬ್‌ನೇಲ್ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ...", flush=True)
-    clean_img = None
-
-    try:
-        full_prompt = f"{image_prompt}, 16:9 widescreen cinematic movie still, ultra detailed, no text, no letters, no watermark"
-        encoded_prompt = urllib.parse.quote(full_prompt)
-        seed = int(time.time()) % 100000
-        poll_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&model=flux&nologo=true&seed={seed}"
-        r = requests.get(poll_url, timeout=45)
-        if r.status_code == 200 and len(r.content) > 15000:
-            clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
-            print("Pollinations AI (Flux) ಮೂಲಕ ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ ಯಶಸ್ವಿಯಾಗಿ ಸಿದ್ಧವಾಗಿದೆ!", flush=True)
-    except Exception as e:
-        print(f"Pollinations AI ಎಚ್ಚರಿಕೆ: {e}", flush=True)
-
-    if clean_img is None:
-        for quality in ["maxresdefault.jpg", "sddefault.jpg", "hqdefault.jpg"]:
-            r = requests.get(f"https://img.youtube.com/vi/{vid_id}/{quality}", timeout=15)
-            if r.status_code == 200 and len(r.content) > 5000:
-                clean_img = Image.open(io.BytesIO(r.content)).convert("RGB")
-                break
-
-    if clean_img is None:
-        return None, None
-
-    clean_img = clean_img.resize((1280, 720), Image.Resampling.LANCZOS)
-    clean_photo_path = "clean_photo.jpg"
-    clean_img.save(clean_photo_path, "JPEG", quality=95)
-
-    ready_img = clean_img.copy()
-    draw = ImageDraw.Draw(ready_img, "RGBA")
-    draw.rectangle([(0, 0), (1280, 115)], fill=(0, 0, 0, 195))
-    draw.rectangle([(0, 605), (1280, 720)], fill=(180, 0, 0, 215))
-
-    font_paths = [
-        "/usr/share/fonts/truetype/noto/NotoSansKannada-Bold.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansKannada-Regular.ttf",
-        "/usr/share/fonts/opentype/noto/NotoSansKannada-Bold.ttf"
-    ]
-    font_path = next((fp for fp in font_paths if os.path.exists(fp)), None)
-    font_top = ImageFont.truetype(font_path, 56) if font_path else ImageFont.load_default()
-    font_bottom = ImageFont.truetype(font_path, 58) if font_path else ImageFont.load_default()
-
-    def draw_centered_text(text_str, y_pos, font, fill_color):
-        bbox = draw.textbbox((0, 0), text_str, font=font)
-        text_w = bbox[2] - bbox[0]
-        x_pos = max(20, (1280 - text_w) // 2)
-        draw.text(
-            (x_pos, y_pos),
-            text_str,
-            font=font,
-            fill=fill_color,
-            stroke_width=4,
-            stroke_fill=(0, 0, 0, 255)
-        )
-
-    draw_centered_text(top_text, 22, font_top, (255, 230, 0, 255))
-    draw_centered_text(bottom_text, 625, font_bottom, (255, 255, 255, 255))
-
-    final_thumb_path = "readymade_thumbnail.jpg"
-    ready_img.save(final_thumb_path, "JPEG", quality=95)
-    print("ಖಾಲಿ HD ಫೋಟೋ ಮತ್ತು ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡೂ ಸಿದ್ಧವಾಗಿವೆ!", flush=True)
-    return clean_photo_path, final_thumb_path
 
 def parse_audio_mime_type(mime_type: str) -> dict:
     bits_per_sample = 16
@@ -309,7 +255,6 @@ def get_audio_duration(file_path: str) -> float:
         return 0.0
 
 def generate_algenib_voice(script_text: str):
-    """Gemini API ಬಳಸಿ ಒಂದೇ ಬಾರಿಗೆ temperature=0.45 ನಲ್ಲಿ ಪೂರ್ತಿ Algenib ವಾಯ್ಸ್ ಜನರೇಟ್ ಮಾಡುತ್ತದೆ"""
     client = genai.Client(
         api_key=GEMINI_API_KEY,
         http_options=types.HttpOptions(api_version="v1beta"),
@@ -395,46 +340,28 @@ def main():
     print(f"ವಿಡಿಯೋ ಸಿಕ್ಕಿದೆ: {url}", flush=True)
     base_url = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
-    # 1. Gemini ಮೂಲಕ ಸ್ಕ್ರಿಪ್ಟ್, SEO ಪ್ಯಾಕೇಜ್ ಮತ್ತು ಥಂಬ್‌ನೇಲ್ ಟೆಕ್ಸ್ಟ್ ಜನರೇಟ್ ಮಾಡುವುದು
-    content_data = generate_script_and_seo(search_title, url)
-    top_txt = content_data.get("top_text", "ಟ್ರೈಲರ್ ಧಮಾಕಾ!")
-    bottom_txt = content_data.get("bottom_text", "ಸಿನಿಮಾ ಕಥೆ & ರಿವ್ಯೂ!")
-    img_prompt = content_data.get("thumbnail_image_prompt", f"Cinematic South Indian movie scene for {search_title}, dramatic lighting, 8k, no text")
-    script_text = content_data.get("script", "")
-
-    # 2. Free Pollinations AI (Flux) ಮೂಲಕ ಖಾಲಿ HD ಫೋಟೋ + ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ ಎರಡನ್ನೂ ಸಿದ್ಧಪಡಿಸುವುದು
-    clean_path, thumb_path = create_both_thumbnails_free_ai(vid_id, img_prompt, top_txt, bottom_txt)
-
-    if clean_path and os.path.exists(clean_path):
-        clean_caption = (
-            f"🎬 <b>{search_title}</b>\n"
-            f"🔗 <b>YouTube Link:</b> {url}\n\n"
-            f"🖼️ <b>1) ಅಕ್ಷರಗಳಿಲ್ಲದ ಖಾಲಿ HD ಫೋಟೋ (Free AI Clean Photo)</b>"
-        )
-        with open(clean_path, "rb") as cf:
-            requests.post(
-                f"{base_url}/sendPhoto",
-                data={"chat_id": CHAT_ID, "caption": clean_caption, "parse_mode": "HTML"},
-                files={"photo": cf}
-            )
-        time.sleep(1.5)
-
-    ready_caption = (
-        f"✅ <b>2) ರೆಡಿಮೇಡ್ ಥಂಬ್‌ನೇಲ್ (Ready Thumbnail)</b>\n"
-        f"🔺 <b>Top:</b> {top_txt}\n"
-        f"🔻 <b>Bottom:</b> {bottom_txt}"
+    # 1. ರಿಯಲ್ YouTube ಥಂಬ್‌ನೇಲ್ ಫೋಟೋ ಮತ್ತು ಲಿಂಕ್ ಕಳುಹಿಸುವುದು
+    real_thumb = get_real_youtube_thumbnail(vid_id)
+    caption = (
+        f"🎬 <b>{search_title}</b>\n"
+        f"🔗 <b>YouTube Link:</b> {url}\n\n"
+        f"🖼️ <b>ರಿಯಲ್ YouTube ಥಂಬ್‌ನೇಲ್ (Real Thumbnail)</b>"
     )
-    if thumb_path and os.path.exists(thumb_path):
-        with open(thumb_path, "rb") as tf:
+    if real_thumb and os.path.exists(real_thumb):
+        with open(real_thumb, "rb") as tf:
             requests.post(
                 f"{base_url}/sendPhoto",
-                data={"chat_id": CHAT_ID, "caption": ready_caption, "parse_mode": "HTML"},
+                data={"chat_id": CHAT_ID, "caption": caption, "parse_mode": "HTML"},
                 files={"photo": tf}
             )
     else:
-        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": ready_caption, "parse_mode": "HTML"})
+        requests.post(f"{base_url}/sendMessage", data={"chat_id": CHAT_ID, "text": caption, "parse_mode": "HTML"})
 
     time.sleep(2)
+
+    # 2. Gemini ಮೂಲಕ ಸ್ಕ್ರಿಪ್ಟ್ ಮತ್ತು SEO ಪ್ಯಾಕೇಜ್ ಜನರೇಟ್ ಮಾಡುವುದು
+    content_data = generate_script_and_seo(search_title, url)
+    script_text = content_data.get("script", "")
 
     # 3. YouTube SEO ಪ್ಯಾಕೇಜ್ ಕಳುಹಿಸುವುದು
     titles_formatted = "\n".join([f"{i+1}. {t}" for i, t in enumerate(content_data.get("seo_titles", []))])
